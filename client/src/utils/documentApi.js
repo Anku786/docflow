@@ -1,6 +1,6 @@
-export const BASE_URL = "http://localhost:5001";
+export const BASE_URL = import.meta.env.VITE_API_URL;
 
-const API_BASE_URL = "http://localhost:5001/api/documents";
+const API_BASE_URL =   `${import.meta.env.VITE_API_URL}api/documents`;
 
 
 export const saveDocument = async ({
