@@ -1,35 +1,21 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-import connectDB from "./config/db.js";
+
 import documentRoutes from "./routes/documentRoutes.js";
 import resumeRoutes from "./routes/resumeRoutes.js";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const uploadDir = path.join(__dirname, "uploads");
-
-
-dotenv.config({
-    path: "./server/.env",
-});
 
 const app = express();
 
-
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: true,
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        allowedHeaders: ["Content-Type"],
+        allowedHeaders: ["Content-Type", "Authorization"],
     })
 );
 
 app.use(express.json());
-app.use("/uploads", express.static(uploadDir));
+app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
     res.json({
@@ -39,21 +25,5 @@ app.get("/", (req, res) => {
 
 app.use("/api/documents", documentRoutes);
 app.use("/api/resumes", resumeRoutes);
-
-const PORT = process.env.PORT || 5001;
-
-const startServer = async () => {
-    try {
-        await connectDB();
-
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
-    } catch (error) {
-        console.error("Unable to start server:", error.message);
-    }
-};
-
-startServer();
 
 export default app;
