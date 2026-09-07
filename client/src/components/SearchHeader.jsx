@@ -4,8 +4,8 @@ export const SearchHeader = (props) => {
             ...props.api.getFilterModel(),
             [props.column.getColId()]: event.target.value
                 ? {
-                    filterType: 'text',
-                    type: 'contains',
+                    filterType: "text",
+                    type: "contains",
                     filter: event.target.value,
                 }
                 : null,
@@ -17,12 +17,11 @@ export const SearchHeader = (props) => {
             <div className="custom-header-title">
                 {props.displayName}
             </div>
-
             <input
                 type="text"
                 placeholder="Search..."
                 onChange={handleChange}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
             />
         </div>
     );

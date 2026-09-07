@@ -1,7 +1,7 @@
 const API_BASE_URL = "http://localhost:5001/api/resumes";
 
-export const getResumes = async () => {
-    const response = await fetch(`${API_BASE_URL}`);
+export const getResumes = async (signal) => {
+    const response = await fetch(`${API_BASE_URL}`, { signal });
     const result = await response.json();
 
     if (!response.ok) {

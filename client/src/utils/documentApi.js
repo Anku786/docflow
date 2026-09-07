@@ -6,15 +6,16 @@ const API_BASE_URL = "http://localhost:5001/api/documents";
 export const saveDocument = async ({
     file,
     documentType,
-    rawText,
     extractedData,
-    amount
+    amount,
+    status,
 }) => {
     const formData = new FormData();
 
     formData.append("file", file);
     formData.append("documentType", documentType);
-    formData.append("amount", amount);
+    formData.append("amount", amount ?? "");
+    formData.append("status", status || "draft");
     formData.append("extractedData", JSON.stringify(extractedData));
 
     const response = await fetch(`${API_BASE_URL}`, {
@@ -30,8 +31,8 @@ export const saveDocument = async ({
     return response.json();
 };
 
-export const getDocuments = async () => {
-    const response = await fetch(API_BASE_URL);
+export const getDocuments = async (signal) => {
+    const response = await fetch(API_BASE_URL, { signal });
 
     const result = await response.json();
 
@@ -45,7 +46,6 @@ export const getDocuments = async () => {
 };
 
 export const deleteDocuments = async (ids) => {
-    console.log(ids, JSON.stringify({ ids }))
     const response = await fetch(`${API_BASE_URL}/delete`, {
         method: "DELETE",
         headers: {

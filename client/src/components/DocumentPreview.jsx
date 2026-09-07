@@ -1,37 +1,44 @@
-import React from "react";
 import { BASE_URL } from "../utils/documentApi";
 
-const DocumentPreview = ({ document, handleSaveDocument }) => {
-console.log(document)
+const getPreviewSrc = (fileUrl) => {
+    if (!fileUrl) return null;
+    if (fileUrl.startsWith("blob:") || fileUrl.startsWith("http")) {
+        return fileUrl;
+    }
+    return `${BASE_URL}${fileUrl}`;
+};
+
+const DocumentPreview = ({ preview, onSave }) => {
+    const fields = Array.isArray(preview?.extractedData)
+        ? preview.extractedData
+        : [];
+    const previewSrc = getPreviewSrc(preview?.fileUrl);
+
     return (
         <section className="upload-review-panel show">
             <div className="upload-review-header">
                 <div className="upload-review-title">
                     <span>📄</span>
-                    <strong>{document?.fileName}</strong>
+                    <strong>{preview?.fileName}</strong>
                 </div>
-                <div className='button-container'>
-                    <button onClick={() => handleSaveDocument("draft")} type="button" className="draft-btn">
+                <div className="button-container">
+                    <button onClick={() => onSave("draft")} type="button" className="draft-btn">
                         📄 Save Draft
                     </button>
-                    <button onClick={() => handleSaveDocument("approved")} type="button" className="approve-btn">
+                    <button onClick={() => onSave("approved")} type="button" className="approve-btn">
                         ✓ Approve
                     </button>
-                    <button onClick={() => handleSaveDocument("declined")} type="button" className="decline-btn">
+                    <button onClick={() => onSave("declined")} type="button" className="decline-btn">
                         x Decline
                     </button>
                 </div>
             </div>
             <div className="review-body">
-
-                {/* LEFT SIDE — Actual PDF */}
-
                 <div className="document-preview">
-
-                    {document?.fileUrl ? (
+                    {previewSrc ? (
                         <iframe
-                            src={`${BASE_URL}${document.fileUrl}`}
-                            title={document?.fileName}
+                            src={previewSrc}
+                            title={preview?.fileName}
                             className="pdf-viewer"
                         />
                     ) : (
@@ -39,28 +46,21 @@ console.log(document)
                             No document selected
                         </div>
                     )}
-
                 </div>
-
-
-                {/* RIGHT SIDE — Extracted Data */}
 
                 <div className="extracted">
                     <h3>Extracted data</h3>
-
-                    {document?.extractedData.length > 0 ? (
-                        document?.extractedData.map((field) => (
+                    {fields.length > 0 ? (
+                        fields.map((field, index) => (
                             <div
                                 className="upload-field"
-                                key={field.label}
+                                key={`${field.label}-${index}`}
                             >
                                 <div className="upload-field-label">
                                     {field.label}
                                 </div>
-
                                 <div className="upload-field-value">
                                     <span>{field.value}</span>
-
                                     <span className="upload-confidence">
                                         {field.confidence}
                                     </span>
@@ -71,10 +71,9 @@ console.log(document)
                         <p>No data extracted yet.</p>
                     )}
                 </div>
-
             </div>
         </section>
-    )
-}
+    );
+};
 
 export default DocumentPreview;

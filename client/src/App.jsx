@@ -1,63 +1,76 @@
-import { useMemo, useState } from 'react'
-import Dashboard from './components/Dashboard'
-import ReviewView from './components/ReviewView'
-import { Topbar } from './components/Topbar'
-import UploadView from './components/UploadView'
+import { useState } from "react";
+import Dashboard from "./components/Dashboard";
+import ReviewView from "./components/ReviewView";
+import { Topbar } from "./components/Topbar";
+import UploadView from "./components/UploadView";
 import { Toaster } from "react-hot-toast";
 
-
 const crumbs = {
-  documents: 'Documents',
-  search: 'Search',
-  'review-queue': 'Review queue',
-}
+  documents: "Documents",
+  search: "Search",
+  "review-queue": "Review queue",
+};
 
 const App = () => {
-  const [nav, setNav] = useState('documents')
-  const [selected, setSelected] = useState(null)
-  const [uploading, setUploading] = useState(false)
-
+  const [currentView, setCurrentView] = useState("documents");
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const title =
-    nav === 'review-queue' ? 'Review queue' : nav === 'search' ? 'Search' : 'Documents'
+    currentView === "review-queue"
+      ? "Review queue"
+      : currentView === "search"
+        ? "Search"
+        : "Documents";
   const subtitle =
-    nav === 'review-queue'
-      ? 'Documents that need attention before they can be verified.'
-      : 'Review and manage your extracted documents.'
+    currentView === "review-queue"
+      ? "Documents that need attention before they can be verified."
+      : "Review and manage your extracted documents.";
 
-  const openReview = (doc) => {
-    if (doc.status === 'processing') return;
-    setSelected(doc)
-  }
+  const openReview = (record) => {
+    if (record.status === "processing") return;
+    setSelectedRecord(record);
+  };
 
   return (
     <div className="app">
       <main className="main">
-        <Topbar crumb={uploading ? 'Upload' : selected ? selected.name : crumbs[nav]} />
-        <div className={`content${uploading ? ' upload-content' : ''}`}>
-          {uploading ? (
+        <Topbar
+          crumb={
+            isUploading
+              ? "Upload"
+              : selectedRecord
+                ? selectedRecord.fileName || selectedRecord.name
+                : crumbs[currentView]
+          }
+        />
+        <div className={`content${isUploading ? " upload-content" : ""}`}>
+          {isUploading ? (
             <UploadView
               onViewAll={() => {
-                setUploading(false)
-                setNav('documents')
+                setIsUploading(false);
+                setCurrentView("documents");
               }}
-              onBack={() => setUploading(false)}
+              onBack={() => setIsUploading(false)}
             />
-          ) : selected ? (
-            <ReviewView document={selected} onBack={() => setSelected(null)} />
+          ) : selectedRecord ? (
+            <ReviewView
+              document={selectedRecord}
+              onBack={() => setSelectedRecord(null)}
+            />
           ) : (
             <Dashboard
               title={title}
               subtitle={subtitle}
               onOpen={openReview}
-              onUpload={() => setUploading(true)}
+              onUpload={() => setIsUploading(true)}
             />
           )}
         </div>
       </main>
       <Toaster position="top-right" />
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;

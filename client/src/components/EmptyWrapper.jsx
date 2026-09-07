@@ -4,9 +4,9 @@ import React from "react";
 const EmptyWrapper = ({ onUpload }) => {
     return (
         <div>
-            <section class="empty-state">
+            <section className="empty-state">
 
-                <div class="empty-icon">
+                <div className="empty-icon">
                     📄
                 </div>
 
@@ -17,19 +17,19 @@ const EmptyWrapper = ({ onUpload }) => {
                     important information and organize it into structured data.
                 </p>
 
-                <button class="primary-button" onClick={onUpload}>
+                <button className="primary-button" onClick={onUpload}>
                     Upload your first document
                 </button>
 
-                <div class="file-info">
+                <div className="file-info">
                     Supports PDF documents
                 </div>
 
             </section>
 
-            <section class="section">
+            <section className="section">
 
-                <div class="section-header">
+                <div className="section-header">
                     <h3>How it works</h3>
 
                     <p>
@@ -38,11 +38,11 @@ const EmptyWrapper = ({ onUpload }) => {
                 </div>
 
 
-                <div class="steps">
+                <div className="steps">
 
-                    <div class="step">
+                    <div className="step">
 
-                        <div class="step-number">1</div>
+                        <div className="step-number">1</div>
 
                         <h4>Upload a document</h4>
 
@@ -54,9 +54,9 @@ const EmptyWrapper = ({ onUpload }) => {
                     </div>
 
 
-                    <div class="step">
+                    <div className="step">
 
-                        <div class="step-number">2</div>
+                        <div className="step-number">2</div>
 
                         <h4>Extract information</h4>
 
@@ -68,9 +68,9 @@ const EmptyWrapper = ({ onUpload }) => {
                     </div>
 
 
-                    <div class="step">
+                    <div className="step">
 
-                        <div class="step-number">3</div>
+                        <div className="step-number">3</div>
 
                         <h4>Review and query</h4>
 

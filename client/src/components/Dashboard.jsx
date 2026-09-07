@@ -1,80 +1,65 @@
-import { useMemo, useState, useEffect } from 'react'
-import StatusBadge from './StatusBadge'
-import UploadComponent from './UploadComponent'
-import EmptyWrapper from './EmptyWrapper'
-import DocumentTable from './DocumentTable'
-import ReviewView from './ReviewView'
-import { deleteDocuments, getDocuments } from '../utils/documentApi'
-import IconButton from '@mui/material/IconButton';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { useEffect, useState } from "react";
+import EmptyWrapper from "./EmptyWrapper";
+import DocumentTable from "./DocumentTable";
+import { deleteDocuments, getDocuments } from "../utils/documentApi";
+import IconButton from "@mui/material/IconButton";
+import DeleteIcon from "@mui/icons-material/Delete";
 import toast from "react-hot-toast";
-import { deleteResumes, getResumes } from '../utils/resumeApi'
+import { deleteResumes, getResumes } from "../utils/resumeApi";
 
+const TYPE_FILTERS = [
+  { value: "invoice", label: "Invoice" },
+  { value: "resume", label: "Resume" },
+];
 
-
-const typeFilters = [
-  { value: 'invoice', label: 'Invoice' },
-  { value: 'resume', label: 'Resume' },
-]
-
-
-const Dashboard = ({ documents, title, subtitle, onOpen, onUpload }) => {
-  const [selectedDocuments, setSelectedDocuments] = useState([]);
-  const [tableData, setTableData] = useState([]);
-  const [selectedDoc, setSelectedDoc] = useState(null);
-  const [type, setType] = useState("");
+const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [documentType, setDocumentType] = useState("invoice");
 
   useEffect(() => {
-    if (type === "resume") {
-      fetchResumeData()
-    } else {
-      fetchData()
-    }
-  }, [type]);
+    const controller = new AbortController();
 
-  const fetchData = async () => {
-    try {
-      const result = await getDocuments();
-      console.log(result?.data)
-      setTableData(result?.data || []);
-    } catch (error) {
-      console.error("Fetch documents failed:", error);
-    }
-  };
+    const loadRows = async () => {
+      try {
+        const result =
+          documentType === "resume"
+            ? await getResumes(controller.signal)
+            : await getDocuments(controller.signal);
 
-  const fetchResumeData = async () => {
-    try {
-      const result = await getResumes();
-      console.log(result?.data)
-      setTableData(result?.data || []);
-    } catch (error) {
-      console.error("Fetch documents failed:", error);
-    }
-  }
+        if (!controller.signal.aborted) {
+          setRows(result?.data || []);
+          setSelectedIds([]);
+        }
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        console.error("Failed to fetch records:", error);
+        toast.error("Failed to load documents");
+      }
+    };
+
+    loadRows();
+
+    return () => controller.abort();
+  }, [documentType]);
 
   const handleBulkDelete = async () => {
     try {
-      const callAPI =
-        type === "resume"
-          ? deleteResumes
-          : deleteDocuments;
-
-      const response = await callAPI(selectedDocuments);
+      const deleteRecords =
+        documentType === "resume" ? deleteResumes : deleteDocuments;
+      const response = await deleteRecords(selectedIds);
 
       if (response?.success) {
-        setSelectedDocuments([])
-        if (type === "resume") {
-          fetchResumeData()
-        } else {
-          fetchData()
-        }
+        setSelectedIds([]);
+        setRows((current) =>
+          current.filter((row) => !selectedIds.includes(row._id))
+        );
         toast.success("Document deleted successfully!");
       }
-
     } catch (error) {
       toast.error("Failed to delete document!");
     }
-  }
+  };
 
   return (
     <section>
@@ -87,22 +72,19 @@ const Dashboard = ({ documents, title, subtitle, onOpen, onUpload }) => {
           + Upload document
         </button>
       </div>
-      {selectedDoc && (<ReviewView document={selectedDoc} onBack={() => setSelectedDoc(null)} />)}
 
       <section className="documents-section">
-
         <div className="documents-header">
           <div className="header">
-
             <h3>Recent documents</h3>
-            <div className='filters'>
+            <div className="filters">
               <select
                 className="filter"
-                value={type}
-                onChange={(event) => setType(event.target.value)}
+                value={documentType}
+                onChange={(event) => setDocumentType(event.target.value)}
                 aria-label="Filter by type"
               >
-                {typeFilters.map((option) => (
+                {TYPE_FILTERS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -111,7 +93,7 @@ const Dashboard = ({ documents, title, subtitle, onOpen, onUpload }) => {
               <IconButton
                 color="error"
                 onClick={handleBulkDelete}
-                disabled={selectedDocuments.length === 0}
+                disabled={selectedIds.length === 0}
                 aria-label="delete selected documents"
               >
                 <DeleteIcon />
@@ -119,38 +101,19 @@ const Dashboard = ({ documents, title, subtitle, onOpen, onUpload }) => {
             </div>
           </div>
         </div>
-        {tableData?.length ?
-          <DocumentTable type={type} tableData={tableData} setTableData={setTableData} setSelectedDoc={setSelectedDoc} setSelectedDocuments={setSelectedDocuments} />
-          :
+        {rows.length ? (
+          <DocumentTable
+            documentType={documentType}
+            rows={rows}
+            onOpen={onOpen}
+            onSelectionChange={setSelectedIds}
+          />
+        ) : (
           <EmptyWrapper onUpload={onUpload} />
-        }
+        )}
       </section>
-
-
-
     </section>
-  )
-}
+  );
+};
 
-export default Dashboard
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+export default Dashboard;

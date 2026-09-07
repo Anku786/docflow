@@ -1,5 +1,3 @@
-import { DocumentStatus } from '../types'
-
 const labels = {
   draft: "Draft",
   approved: "Approved",

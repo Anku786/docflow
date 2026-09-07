@@ -1,49 +1,51 @@
-import { useEffect, useRef, useState } from 'react';
-import { parseDocument } from "../utils/parseDocument";
-import { saveDocument } from "../utils/documentApi";
-import UploadComponent from './UploadComponent';
-import { fileToBase64 } from '../utils/common';
-import DocumentPreview from './DocumentPreview';
-import { extractTotalAmount } from '../utils/parseInvoice';
+import { useCallback, useState } from "react";
 import toast from "react-hot-toast";
-import { saveResume } from '../utils/resumeApi';
-import { extractResumePayload } from '../utils/extractPdfText';
-
+import DocumentUploader from "./UploadComponent";
+import DocumentPreview from "./DocumentPreview";
+import { saveDocument } from "../utils/documentApi";
+import { saveResume } from "../utils/resumeApi";
+import { extractTotalAmount } from "../utils/parseInvoice";
+import { extractResumePayload } from "../utils/parseResume";
 
 const UploadView = ({ onViewAll, onBack }) => {
   const [showReview, setShowReview] = useState(false);
-  const [reviewFile, setReviewFile] = useState('');
-  const [pdfUrl, setPdfUrl] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [documentType, setDocumentType] = useState("invoice");
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [extractedData, setExtractedData] = useState("");
+  const [extractionResult, setExtractionResult] = useState(null);
   const [extractedFields, setExtractedFields] = useState([]);
-  const reviewRef = useRef(null);
+
+  const handleProcessed = useCallback(({ file, previewUrl: nextPreviewUrl, fields, extractionResult: nextExtraction }) => {
+    setUploadedFile(file);
+    setPreviewUrl(nextPreviewUrl);
+    setExtractedFields(fields);
+    setExtractionResult(nextExtraction);
+    setShowReview(true);
+  }, []);
 
   const handleSave = async (status) => {
     if (documentType === "resume") {
-      handleSaveResume(status)
+      await handleSaveResume(status);
     } else {
-      handleSaveDocument(status)
+      await handleSaveDocument(status);
     }
   };
 
   const handleSaveDocument = async (status) => {
-    const totalAmount = extractTotalAmount(extractedData?.text);
+    const totalAmount = extractTotalAmount(extractionResult?.text);
     try {
       const result = await saveDocument({
         file: uploadedFile,
         extractedData: extractedFields,
         status,
         documentType,
-        amount: totalAmount
+        amount: totalAmount,
       });
 
       if (result?.success) {
         toast.success("Document saved successfully!");
+        onViewAll ? onViewAll() : onBack();
       }
-
-
     } catch (error) {
       toast.error("Failed to save document!");
     }
@@ -51,9 +53,9 @@ const UploadView = ({ onViewAll, onBack }) => {
 
   const handleSaveResume = async (status) => {
     try {
-      const paylaod = extractResumePayload(extractedFields)
+      const payload = extractResumePayload(extractedFields);
       const result = await saveResume({
-        ...paylaod,
+        ...payload,
         file: uploadedFile,
         extractedData: extractedFields,
         status,
@@ -61,16 +63,13 @@ const UploadView = ({ onViewAll, onBack }) => {
       });
 
       if (result?.success) {
-        toast.success("Document saved successfully!");
-        onBack()
+        toast.success("Resume saved successfully!");
+        onViewAll ? onViewAll() : onBack();
       }
-
     } catch (error) {
-      console.log(error)
-      toast.error("Failed to save document!");
+      toast.error("Failed to save resume!");
     }
-  }
-
+  };
 
   return (
     <div className="upload-view">
@@ -79,25 +78,24 @@ const UploadView = ({ onViewAll, onBack }) => {
         <p>Turn messy documents into structured, queryable data.</p>
       </section>
 
-      <UploadComponent
+      <DocumentUploader
         documentType={documentType}
-        setDocumentType={setDocumentType}
-        setShowReview={setShowReview}
-        setPdfUrl={setPdfUrl}
-        setExtractedFields={setExtractedFields}
-        setUploadedFile={setUploadedFile}
-        setExtractedData={setExtractedData}
+        onDocumentTypeChange={setDocumentType}
+        onProcessed={handleProcessed}
       />
 
       {showReview && (
         <DocumentPreview
-          document={{ ...document, url: pdfUrl, fileName: uploadedFile.name, extractedData: extractedFields }}
-          handleSaveDocument={handleSave}
+          preview={{
+            fileUrl: previewUrl,
+            fileName: uploadedFile?.name,
+            extractedData: extractedFields,
+          }}
+          onSave={handleSave}
         />
       )}
-
     </div>
-  )
-}
+  );
+};
 
-export default UploadView
+export default UploadView;

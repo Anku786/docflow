@@ -265,3 +265,56 @@ export const parseResume = (text) => {
 
     return fields;
 };
+
+export const extractResumePayload = (fields = []) => {
+    const getValue = (label) =>
+        fields.find(
+            (field) => field.label.toLowerCase() === label.toLowerCase()
+        )?.value || "";
+
+    const skillsValue = getValue("Skills");
+    const experienceValue = getValue("Total Experience");
+    const yearsMatch = experienceValue.match(/(\d+)\s*year/i);
+
+    return {
+        candidateName: getValue("Name"),
+        email: getValue("Email"),
+        phone: getValue("Phone"),
+        skills: skillsValue
+            ? skillsValue.split(",").map((skill) => skill.trim()).filter(Boolean)
+            : [],
+        experience: yearsMatch ? Number(yearsMatch[1]) : 0,
+    };
+};
+
+export const mapResumeMatchToFields = (match) => {
+    if (!match) return [];
+
+    const fields = [];
+
+    if (match.score != null) {
+        fields.push({
+            label: "Match Score",
+            value: `${match.score}%`,
+            confidence: "100%",
+        });
+    }
+
+    if (Array.isArray(match.matchedSkills) && match.matchedSkills.length) {
+        fields.push({
+            label: "Matched Skills",
+            value: match.matchedSkills.join(", "),
+            confidence: "95%",
+        });
+    }
+
+    if (Array.isArray(match.missingSkills) && match.missingSkills.length) {
+        fields.push({
+            label: "Missing Skills",
+            value: match.missingSkills.join(", "),
+            confidence: "95%",
+        });
+    }
+
+    return fields;
+};
