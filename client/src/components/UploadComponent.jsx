@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { parseDocument } from "../utils/parseDocument";
 import { extractPdfText } from "../utils/extractPdfText";
 import { extractInvoice } from "../utils/documentApi";
+import { extractResumeMatch } from "../utils/resumeApi";
 
 const ACCEPTED = '.pdf,.doc,.docx,.xlsx,.csv';
 const STEPS = [
@@ -73,6 +74,8 @@ const UploadComponent = (props) => {
                 result.text,
                 props?.documentType
             );
+            // const abc = await extractResumeMatch(result.text)
+            console.log("___",abc)
             // const extracted = await extractInvoice(result.text);
             const extracted = {
                 "invoiceType": "airfare",
@@ -103,6 +106,67 @@ const UploadComponent = (props) => {
                         "confidence": 1,
                         "evidence": "₹"
                     }
+                }
+            }
+
+            const resumeExtracted = {
+                "success": true,
+                "data": {
+                    "score": 55,
+                    "matchedSkills": [
+                        "HTML",
+                        "CSS",
+                        "JavaScript",
+                        "React.js",
+                        "Redux",
+                        "Next.js",
+                        "Git",
+                        "Node.js",
+                        "Express.js",
+                        "MongoDB",
+                        "MySQL",
+                        "Front-End Engineer experience (3+ years)",
+                        "Designing and developing high-quality front-end solutions",
+                        "Building scalable web applications",
+                        "Problem-solving",
+                        "Ability to work independently",
+                        "Adhering to deadlines",
+                        "Attention to detail (implied by high-quality work and user experiences)"
+                    ],
+                    "missingSkills": [
+                        "Leading a team",
+                        "Mentoring junior developers",
+                        "Deep understanding of front-end architecture",
+                        "Design patterns",
+                        "Best practices (in architectural context)",
+                        "Responsive design principles",
+                        "Cross-browser compatibility",
+                        "Performance optimisations",
+                        "Accessibility standards",
+                        "UI/UX design principles (explicit familiarity)",
+                        "Agile development methodologies",
+                        "Conducting user testing",
+                        "Making data-driven decisions for UI/UX improvements",
+                        "Acting as a technical expert",
+                        "Driving continuous improvement in development processes, code quality, and front-end architecture"
+                    ],
+                    "strengths": [
+                        "Strong hands-on experience as a React.js developer with over 3 years in relevant roles.",
+                        "Proficiency in core web technologies (HTML, CSS, JavaScript) and modern frameworks/libraries (React.js, Next.js, Redux).",
+                        "Full-stack development experience (Node.js, Express.js, MongoDB), indicating a broader understanding of web application development.",
+                        "Proven track record of delivering multiple complex front-end projects, including healthcare dashboards, e-commerce platforms, and marketing sites.",
+                        "Experience with version control systems, specifically Git.",
+                        "Demonstrated passion for building scalable web applications.",
+                        "Ability to work independently and manage multiple tasks while adhering to deadlines, as evidenced by project timelines."
+                    ],
+                    "gaps": [
+                        "Lack of explicit experience or mention of leading a team or mentoring junior developers, which is a key qualification.",
+                        "Limited demonstration or articulation of a 'deep understanding' of front-end architecture, design patterns, and best practices.",
+                        "Absence of explicit mention or experience with performance optimizations, responsive design principles, cross-browser compatibility, and accessibility standards.",
+                        "No explicit mention of familiarity with UI/UX design principles or conducting user testing for data-driven decisions.",
+                        "No mention of experience with agile development methodologies.",
+                        "Limited evidence of actively 'driving continuous improvement' in development processes, code quality, or front-end architecture, or acting as a 'technical expert' in industry trends."
+                    ]
                 }
             }
 

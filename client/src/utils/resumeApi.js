@@ -106,3 +106,28 @@ export const deleteResumes = async (ids) => {
 
     return response.json();
 };
+
+export const extractResumeMatch = async (resumeText) => {
+    const response = await fetch(
+        `${API_BASE_URL}/match`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                resumeText,
+            }),
+        }
+    );
+
+    if (!response.ok) {
+        const error = await response.json();
+
+        throw new Error(
+            error.message || "Failed to extract resume"
+        );
+    }
+
+    return response.json();
+};

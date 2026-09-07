@@ -1,0 +1,41 @@
+Key Responsibilities:
+
+Designing and developing high-quality, scalable, and performant front-end solutions using modern web technologies
+
+Collaborating with product managers, UX/UI designers, and back-end engineers to translate requirements and designs into functional, user-friendly interfaces
+
+Acting as a technical expert, staying updated on industry trends, best practices, and emerging technologies in front-end development
+
+Driving continuous improvement in development processes, code quality, and front-end architecture
+
+Collaborating with cross-functional teams to define and implement best practices, standards, and coding conventions
+
+Conducting performance optimisations and ensuring the scalability and responsiveness of our front-end applications
+
+Championing usability and accessibility standards, ensuring our applications are intuitive and accessible to a diverse user base
+
+Staying informed about user feedback and conducting user testing to make data-driven decisions for UI/UX improvements
+
+Staying aligned with project timelines and delivering high-quality work within agreed-upon deadlines
+
+Qualifications:
+
+3-7 years of experience as a Front-End Engineer, with a strong track record of delivering high-quality front-end solutions
+
+Proficiency in web technologies such as HTML, CSS, JavaScript, and front-end frameworks like React, Angular, or Vue.js
+
+Experience in leading a team or mentoring junior developers, demonstrating strong leadership and communication skills
+
+Deep understanding of front-end architecture, design patterns, and best practices
+
+Strong knowledge of responsive design principles and cross-browser compatibility
+
+Experience with version control systems (e.g., Git) and agile development methodologies
+
+Familiarity with UI/UX design principles and the ability to collaborate effectively with designers
+
+Excellent problem-solving skills and a proactive attitude towards finding solutions
+
+Ability to work independently and manage multiple tasks while adhering to deadlines
+
+Strong attention to detail and a passion for creating exceptional user experiences

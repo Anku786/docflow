@@ -1,4 +1,6 @@
 import Resume from "../models/Resume.js";
+import { analyzeResumeAgainstJD } from "../services/geminiService.js";
+import { getZampJD } from "../services/jobDescriptionService.js";
 
 export const getResumes = async (req, res) => {
     console.log("🔥 GET /api/resumes HIT");
@@ -195,6 +197,39 @@ export const deleteResumes = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Failed to delete resumes",
+            error: error.message,
+        });
+    }
+};
+
+export const calculateResumeMatch = async (req, res) => {
+    try {
+        const { resumeText } = req.body;
+
+        if (!resumeText) {
+            return res.status(400).json({
+                success: false,
+                message: "Resume text is required",
+            });
+        }
+
+        const jdText = await getZampJD();
+
+        const match = await analyzeResumeAgainstJD({
+            resumeText,
+            jdText,
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: match,
+        });
+    } catch (error) {
+        console.error("Resume match error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to calculate resume match",
             error: error.message,
         });
     }
