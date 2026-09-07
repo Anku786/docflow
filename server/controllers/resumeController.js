@@ -76,68 +76,11 @@ export const createResume = async (req, res) => {
 export const updateResume = async (req, res) => {
     try {
         const { id } = req.params;
-
-        const {
-            candidateName,
-            email,
-            phone,
-            experience,
-            skills,
-            education,
-            summary,
-            rawText,
-            extractedData,
-            confidence,
-            matchScore,
-            status,
-        } = req.body;
-
-        const updateData = {
-            candidateName,
-            email,
-            phone,
-            experience: experience !== undefined
-                ? Number(experience)
-                : undefined,
-            skills: skills
-                ? JSON.parse(skills)
-                : undefined,
-            education: education
-                ? JSON.parse(education)
-                : undefined,
-            summary,
-            rawText,
-            extractedData: extractedData
-                ? JSON.parse(extractedData)
-                : undefined,
-            confidence: confidence !== undefined
-                ? Number(confidence)
-                : undefined,
-            matchScore:
-                matchScore !== undefined && matchScore !== ""
-                    ? Number(matchScore)
-                    : null,
-            status,
-        };
-
-        // Remove undefined fields
-        Object.keys(updateData).forEach((key) => {
-            if (updateData[key] === undefined) {
-                delete updateData[key];
-            }
-        });
-
-        // If a new resume file is uploaded
-        if (req.file) {
-            updateData.fileName = req.file.originalname;
-            updateData.fileType = req.file.mimetype;
-            updateData.fileUrl =
-                `${process.env.API_BASE_URL}/uploads/${req.file.filename}`;
-        }
+        const { status } = req.body;
 
         const resume = await Resume.findByIdAndUpdate(
             id,
-            updateData,
+            { status },
             {
                 new: true,
                 runValidators: true,
@@ -156,6 +99,7 @@ export const updateResume = async (req, res) => {
             message: "Resume updated successfully",
             resume,
         });
+
     } catch (error) {
         console.error("Update resume error:", error);
 

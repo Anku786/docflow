@@ -54,7 +54,7 @@ const resumeSchema = new mongoose.Schema(
         
         status: {
             type: String,
-            enum: ["draft", "accepted", "declined"],
+            enum: ["draft", "approved", "declined"],
             default: "draft",
         },
     },
