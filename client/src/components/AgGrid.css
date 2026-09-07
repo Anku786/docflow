@@ -92,3 +92,26 @@
 .custom-header input:focus {
     border-color: #aaa;
 }
+
+.skills-cell {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.skill-chip {
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #374151;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.skills-more {
+    color: #2563eb;
+    font-size: 12px;
+    cursor: help;
+    white-space: nowrap;
+}

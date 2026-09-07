@@ -10,7 +10,7 @@ import { SearchHeader } from "./SearchHeader";
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 const GRID_OPTIONS = {
-  rowHeight: 50,
+  rowHeight: 60,
   headerHeight: 80,
   rowBuffer: 8,
   suppressRowVirtualisation: false,
@@ -19,18 +19,39 @@ const GRID_OPTIONS = {
 };
 
 const FileNameCell = memo((params) => (
-  <div className="document-name">
-    <div
-      onClick={() => params.context?.onOpen?.(params.data)}
-      className="file-icon"
-    >
-      PDF
-    </div>
-    <div>
+  <div className="document-name" onClick={() => params.context?.onOpen?.(params.data)}>
+    <span className="file-icon">PDF  ↗</span>
       <strong>{params.data.fileName}</strong>
-    </div>
   </div>
 ));
+
+const SkillCell = memo((params) => {
+  const rawSkills = params?.data?.skills || [];
+
+  const skills = (Array.isArray(rawSkills) ? rawSkills : [rawSkills])
+    .flatMap((item) => item.split(/,\s*|\s{2,}/))
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+
+  const visibleSkills = skills.slice(0, 5);
+  const remainingSkills = skills.slice(5);
+
+  return (
+    <div className="skills-cell">
+      {visibleSkills.map((skill) => (
+        <span className="skill-chip" key={skill}>
+          {skill}
+        </span>
+      ))}
+
+      {remainingSkills.length > 0 && (
+        <span className="skills-more">
+          +{remainingSkills.length} more
+        </span>
+      )}
+    </div>
+  );
+});
 
 const MatchScoreCell = memo((params) => {
   const score = params.value;
@@ -45,7 +66,7 @@ const MatchScoreCell = memo((params) => {
 const StatusCell = memo((params) => <StatusBadge status={params.value} />);
 
 const formatExperience = (params) =>
-  params.value ? `${params.value} years` : "-";
+  params.value ? `${params.value}` : "-";
 
 const formatSkills = (params) => {
   if (!Array.isArray(params.value)) return "-";
@@ -64,6 +85,7 @@ const formatUploadedDate = (params) => {
 };
 
 const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
+  console.log(rows)
   const columnDefs = useMemo(() => {
     const fileNameColumn = {
       field: "fileName",
@@ -97,7 +119,17 @@ const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
           field: "skills",
           headerName: "Skills",
           flex: 1.5,
-          valueFormatter: formatSkills,
+          cellRenderer: SkillCell,
+          tooltipValueGetter: (params) => {
+            const rawSkills = params.data?.skills || [];
+
+            const skills = (Array.isArray(rawSkills) ? rawSkills : [rawSkills])
+              .flatMap((item) => item.split(/,\s*|\s{2,}/))
+              .map((skill) => skill.trim())
+              .filter(Boolean);
+
+            return skills.join(", ");
+          },
         },
         {
           field: "matchScore",
@@ -184,6 +216,7 @@ const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
         rowSelection="multiple"
         onSelectionChanged={onSelectionChanged}
         getRowId={getRowId}
+        tooltipShowDelay={300}
       />
     </div>
   );

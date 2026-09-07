@@ -333,6 +333,7 @@ tbody tr:hover {
   align-items: center;
   gap: 12px;
   width: 100%;
+  cursor: pointer;
 }
 
 .document-name strong {
@@ -363,7 +364,9 @@ tbody tr:hover {
 
 
 .document-name span {
-  display: block;
+  display: flex;
+  padding: 0 2rem;
+  text-align: center;
   color: var(--muted);
   font-size: 11px;
   margin-top: 3px;
@@ -1463,4 +1466,17 @@ input[type="radio"] {
   justify-content: space-between;
   width: 100%;
   align-items: center;
+}
+
+.pdf-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #2563eb;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.pdf-link:hover {
+  text-decoration: underline;
 }

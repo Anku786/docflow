@@ -86,8 +86,8 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
       <section className="documents-section">
         <div className="documents-header">
           <div className="header">
-            <h3>Recent documents</h3>
             <div className="filters">
+              <h3>Recent documents</h3>
               <select
                 className="filter"
                 value={documentType}
@@ -100,15 +100,15 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
                   </option>
                 ))}
               </select>
-              <IconButton
-                color="error"
-                onClick={handleBulkDelete}
-                disabled={isDeleteDisabled}
-                aria-label="delete selected documents"
-              >
-                <DeleteIcon />
-              </IconButton>
             </div>
+            <IconButton
+              color="error"
+              onClick={handleBulkDelete}
+              disabled={isDeleteDisabled}
+              aria-label="delete selected documents"
+            >
+              <DeleteIcon />
+            </IconButton>
           </div>
         </div>
         {hasRows ? (
