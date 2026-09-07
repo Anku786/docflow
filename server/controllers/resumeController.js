@@ -1,9 +1,9 @@
 import Resume from "../models/Resume.js";
+import { uploadToCloudinary } from "../services/cloudinaryService.js";
 import { analyzeResumeAgainstJD } from "../services/geminiService.js";
 import { getZampJD } from "../services/jobDescriptionService.js";
 
 export const getResumes = async (req, res) => {
-    console.log("🔥 GET /api/resumes HIT");
     try {
         const resumes = await Resume.find()
             .sort({ createdAt: -1 })
@@ -43,7 +43,12 @@ export const createResume = async (req, res) => {
             });
         }
 
-        const fileUrl = `/uploads/${req.file.filename}`;
+        const cloudinaryResult = await uploadToCloudinary(
+            req.file.buffer,
+            req.file.originalname
+        );
+
+        const fileUrl = cloudinaryResult.secure_url;
         const resume = await Resume.create({
             fileName: req.file.originalname,
             fileType: req.file.mimetype,
