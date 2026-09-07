@@ -1,8 +1,8 @@
 const labels = {
   draft: "Draft",
   approved: "Approved",
-  declined: "Declined"
-}
+  declined: "Declined",
+};
 
 const StatusBadge = ({ status }) => {
   return (
@@ -10,7 +10,7 @@ const StatusBadge = ({ status }) => {
       <span className="status-dot" />
       {labels[status]}
     </span>
-  )
-}
+  );
+};
 
-export default StatusBadge
+export default StatusBadge;

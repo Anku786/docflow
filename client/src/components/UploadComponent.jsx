@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { parseDocument, mapInvoiceExtractionToFields } from "../utils/parseDocument";
 import { extractPdfText } from "../utils/extractPdfText";
@@ -26,6 +26,7 @@ const DocumentUploader = ({
     const [progress, setProgress] = useState(0);
     const inputRef = useRef(null);
     const previewUrlRef = useRef(null);
+    const isProcessingRef = useRef(false);
 
     useEffect(() => {
         return () => {
@@ -35,14 +36,14 @@ const DocumentUploader = ({
         };
     }, []);
 
-    const revokePreviewUrl = () => {
+    const revokePreviewUrl = useCallback(() => {
         if (previewUrlRef.current) {
             URL.revokeObjectURL(previewUrlRef.current);
             previewUrlRef.current = null;
         }
-    };
+    }, []);
 
-    const processFile = async (file) => {
+    const processFile = useCallback(async (file) => {
         if (file.size > MAX_FILE_BYTES) {
             toast.error("File exceeds 25 MB");
             return;
@@ -50,6 +51,7 @@ const DocumentUploader = ({
 
         revokePreviewUrl();
         setFileName(file.name);
+        isProcessingRef.current = true;
         setIsProcessing(true);
         setProgress(25);
 
@@ -96,14 +98,66 @@ const DocumentUploader = ({
             toast.error(error.message || "Failed to process document");
             setProgress(0);
         } finally {
+            isProcessingRef.current = false;
             setIsProcessing(false);
         }
-    };
+    }, [documentType, onProcessed, revokePreviewUrl]);
 
-    const onFiles = (files) => {
-        if (!files?.length || isProcessing) return;
+    const onFiles = useCallback((files) => {
+        if (!files?.length || isProcessingRef.current) return;
         processFile(files[0]);
-    };
+    }, [processFile]);
+
+    const handleSelectInvoice = useCallback(
+        () => onDocumentTypeChange("invoice"),
+        [onDocumentTypeChange]
+    );
+    const handleSelectResume = useCallback(
+        () => onDocumentTypeChange("resume"),
+        [onDocumentTypeChange]
+    );
+
+    const handleDragOver = useCallback((event) => {
+        event.preventDefault();
+        setIsDragging(true);
+    }, []);
+
+    const handleDragLeave = useCallback(() => {
+        setIsDragging(false);
+    }, []);
+
+    const handleDrop = useCallback((event) => {
+        event.preventDefault();
+        setIsDragging(false);
+        onFiles(event.dataTransfer.files);
+    }, [onFiles]);
+
+    const handleBrowseClick = useCallback(() => {
+        inputRef.current?.click();
+    }, []);
+
+    const handleFileChange = useCallback((event) => {
+        onFiles(event.target.files);
+        event.target.value = "";
+    }, [onFiles]);
+
+    const dropZoneClassName = useMemo(
+        () => `drop-zone${isDragging ? " dragging" : ""}`,
+        [isDragging]
+    );
+
+    const stepStates = useMemo(
+        () =>
+            PROCESSING_STEPS.map((label, index) => {
+                const threshold = (index + 1) * 25;
+                return {
+                    label,
+                    completed: progress >= threshold,
+                    current: progress >= threshold - 20 && progress < threshold,
+                };
+            }),
+        [progress]
+    );
 
     return (
         <div>
@@ -115,7 +169,7 @@ const DocumentUploader = ({
                             name="documentType"
                             value="invoice"
                             checked={documentType === "invoice"}
-                            onChange={() => onDocumentTypeChange("invoice")}
+                            onChange={handleSelectInvoice}
                         />
                         <label>Invoice</label>
                     </div>
@@ -125,23 +179,16 @@ const DocumentUploader = ({
                             name="documentType"
                             value="resume"
                             checked={documentType === "resume"}
-                            onChange={() => onDocumentTypeChange("resume")}
+                            onChange={handleSelectResume}
                         />
                         <label>Resume</label>
                     </div>
                 </div>
                 <div
-                    className={`drop-zone${isDragging ? " dragging" : ""}`}
-                    onDragOver={(event) => {
-                        event.preventDefault();
-                        setIsDragging(true);
-                    }}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={(event) => {
-                        event.preventDefault();
-                        setIsDragging(false);
-                        onFiles(event.dataTransfer.files);
-                    }}
+                    className={dropZoneClassName}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
                 >
                     <div className="upload-icon">↑</div>
                     <h2>Drag & drop your documents here</h2>
@@ -149,7 +196,7 @@ const DocumentUploader = ({
                     <button
                         type="button"
                         className="browse-btn"
-                        onClick={() => inputRef.current?.click()}
+                        onClick={handleBrowseClick}
                     >
                         Browse files
                     </button>
@@ -158,10 +205,7 @@ const DocumentUploader = ({
                         id="fileInput"
                         type="file"
                         accept={ACCEPTED}
-                        onChange={(event) => {
-                            onFiles(event.target.files);
-                            event.target.value = "";
-                        }}
+                        onChange={handleFileChange}
                     />
                     <div className="file-info">PDF · Maximum 25 MB per file</div>
                 </div>
@@ -176,20 +220,15 @@ const DocumentUploader = ({
                         <div className="progress-bar" style={{ width: `${progress}%` }} />
                     </div>
                     <div className="steps">
-                        {PROCESSING_STEPS.map((label, index) => {
-                            const threshold = (index + 1) * 25;
-                            const completed = progress >= threshold;
-                            const current = progress >= threshold - 20 && progress < threshold;
-                            return (
-                                <div
-                                    key={label}
-                                    className={`step${completed ? " completed" : current ? " current" : ""}`}
-                                >
-                                    <div className="step-icon">{completed ? "✓" : index + 1}</div>
-                                    {label}
-                                </div>
-                            );
-                        })}
+                        {stepStates.map((step, index) => (
+                            <div
+                                key={step.label}
+                                className={`step${step.completed ? " completed" : step.current ? " current" : ""}`}
+                            >
+                                <div className="step-icon">{step.completed ? "✓" : index + 1}</div>
+                                {step.label}
+                            </div>
+                        ))}
                     </div>
                 </section>
             )}
@@ -197,4 +236,4 @@ const DocumentUploader = ({
     );
 };
 
-export default DocumentUploader;
+export default memo(DocumentUploader);

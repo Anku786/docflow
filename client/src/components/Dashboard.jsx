@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import EmptyWrapper from "./EmptyWrapper";
 import DocumentTable from "./DocumentTable";
 import { deleteDocuments, getDocuments } from "../utils/documentApi";
@@ -43,7 +43,7 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
     return () => controller.abort();
   }, [documentType]);
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = useCallback(async () => {
     try {
       const deleteRecords =
         documentType === "resume" ? deleteResumes : deleteDocuments;
@@ -59,7 +59,17 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
     } catch (error) {
       toast.error("Failed to delete document!");
     }
-  };
+  }, [documentType, selectedIds]);
+
+  const handleTypeChange = useCallback((event) => {
+    setDocumentType(event.target.value);
+  }, []);
+
+  const hasRows = useMemo(() => rows.length > 0, [rows]);
+  const isDeleteDisabled = useMemo(
+    () => selectedIds.length === 0,
+    [selectedIds]
+  );
 
   return (
     <section>
@@ -81,7 +91,7 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
               <select
                 className="filter"
                 value={documentType}
-                onChange={(event) => setDocumentType(event.target.value)}
+                onChange={handleTypeChange}
                 aria-label="Filter by type"
               >
                 {TYPE_FILTERS.map((option) => (
@@ -93,7 +103,7 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
               <IconButton
                 color="error"
                 onClick={handleBulkDelete}
-                disabled={selectedIds.length === 0}
+                disabled={isDeleteDisabled}
                 aria-label="delete selected documents"
               >
                 <DeleteIcon />
@@ -101,7 +111,7 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
             </div>
           </div>
         </div>
-        {rows.length ? (
+        {hasRows ? (
           <DocumentTable
             documentType={documentType}
             rows={rows}
@@ -116,4 +126,4 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
   );
 };
 
-export default Dashboard;
+export default memo(Dashboard);

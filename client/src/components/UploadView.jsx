@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import DocumentUploader from "./UploadComponent";
 import DocumentPreview from "./DocumentPreview";
@@ -23,15 +23,11 @@ const UploadView = ({ onViewAll, onBack }) => {
     setShowReview(true);
   }, []);
 
-  const handleSave = async (status) => {
-    if (documentType === "resume") {
-      await handleSaveResume(status);
-    } else {
-      await handleSaveDocument(status);
-    }
-  };
+  const goBack = useCallback(() => {
+    onViewAll ? onViewAll() : onBack();
+  }, [onViewAll, onBack]);
 
-  const handleSaveDocument = async (status) => {
+  const handleSaveDocument = useCallback(async (status) => {
     const totalAmount = extractTotalAmount(extractionResult?.text);
     try {
       const result = await saveDocument({
@@ -44,14 +40,14 @@ const UploadView = ({ onViewAll, onBack }) => {
 
       if (result?.success) {
         toast.success("Document saved successfully!");
-        onViewAll ? onViewAll() : onBack();
+        goBack();
       }
     } catch (error) {
       toast.error("Failed to save document!");
     }
-  };
+  }, [documentType, extractedFields, extractionResult, goBack, uploadedFile]);
 
-  const handleSaveResume = async (status) => {
+  const handleSaveResume = useCallback(async (status) => {
     try {
       const payload = extractResumePayload(extractedFields);
       const result = await saveResume({
@@ -64,12 +60,29 @@ const UploadView = ({ onViewAll, onBack }) => {
 
       if (result?.success) {
         toast.success("Resume saved successfully!");
-        onViewAll ? onViewAll() : onBack();
+        goBack();
       }
     } catch (error) {
       toast.error("Failed to save resume!");
     }
-  };
+  }, [documentType, extractedFields, goBack, uploadedFile]);
+
+  const handleSave = useCallback(async (status) => {
+    if (documentType === "resume") {
+      await handleSaveResume(status);
+    } else {
+      await handleSaveDocument(status);
+    }
+  }, [documentType, handleSaveDocument, handleSaveResume]);
+
+  const preview = useMemo(
+    () => ({
+      fileUrl: previewUrl,
+      fileName: uploadedFile?.name,
+      extractedData: extractedFields,
+    }),
+    [extractedFields, previewUrl, uploadedFile?.name]
+  );
 
   return (
     <div className="upload-view">
@@ -86,11 +99,7 @@ const UploadView = ({ onViewAll, onBack }) => {
 
       {showReview && (
         <DocumentPreview
-          preview={{
-            fileUrl: previewUrl,
-            fileName: uploadedFile?.name,
-            extractedData: extractedFields,
-          }}
+          preview={preview}
           onSave={handleSave}
         />
       )}
@@ -98,4 +107,4 @@ const UploadView = ({ onViewAll, onBack }) => {
   );
 };
 
-export default UploadView;
+export default memo(UploadView);

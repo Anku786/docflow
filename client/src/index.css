@@ -1166,6 +1166,16 @@ input[type="radio"] {
 
 .extracted {
   padding: 28px;
+  min-width: 0;
+}
+
+.extracted-list {
+  margin-top: 4px;
+}
+
+.extracted-list .upload-field {
+  margin-bottom: 0;
+  padding-bottom: 12px;
 }
 
 .extracted h3 {

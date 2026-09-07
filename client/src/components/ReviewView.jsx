@@ -1,10 +1,11 @@
+import { useCallback } from "react";
 import toast from "react-hot-toast";
 import DocumentPreview from "./DocumentPreview";
 import { updateDocumentStatus } from "../utils/documentApi";
 import { updateResume } from "../utils/resumeApi";
 
 const ReviewView = ({ document: record, onBack }) => {
-  const updateRecord = async (status) => {
+  const updateRecord = useCallback(async (status) => {
     try {
       const isResume = Array.isArray(record.skills) || "candidateName" in record;
       const result = isResume
@@ -18,7 +19,7 @@ const ReviewView = ({ document: record, onBack }) => {
     } catch (error) {
       toast.error("Failed to update document!");
     }
-  };
+  }, [onBack, record]);
 
   return (
     <section className="review-view">

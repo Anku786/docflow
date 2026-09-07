@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import Dashboard from "./components/Dashboard";
 import ReviewView from "./components/ReviewView";
 import { Topbar } from "./components/Topbar";
@@ -16,54 +16,78 @@ const App = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const title =
-    currentView === "review-queue"
-      ? "Review queue"
-      : currentView === "search"
-        ? "Search"
-        : "Documents";
-  const subtitle =
-    currentView === "review-queue"
-      ? "Documents that need attention before they can be verified."
-      : "Review and manage your extracted documents.";
+  const title = useMemo(
+    () =>
+      currentView === "review-queue"
+        ? "Review queue"
+        : currentView === "search"
+          ? "Search"
+          : "Documents",
+    [currentView]
+  );
 
-  const openReview = (record) => {
+  const subtitle = useMemo(
+    () =>
+      currentView === "review-queue"
+        ? "Documents that need attention before they can be verified."
+        : "Review and manage your extracted documents.",
+    [currentView]
+  );
+
+  const crumb = useMemo(() => {
+    if (isUploading) return "Upload";
+    if (selectedRecord) return selectedRecord.fileName || selectedRecord.name;
+    return crumbs[currentView];
+  }, [currentView, isUploading, selectedRecord]);
+
+  const contentClassName = useMemo(
+    () => `content${isUploading ? " upload-content" : ""}`,
+    [isUploading]
+  );
+
+  const openReview = useCallback((record) => {
     if (record.status === "processing") return;
     setSelectedRecord(record);
-  };
+  }, []);
+
+  const handleUpload = useCallback(() => {
+    setIsUploading(true);
+  }, []);
+
+  const handleUploadBack = useCallback(() => {
+    setIsUploading(false);
+  }, []);
+
+  const handleViewAll = useCallback(() => {
+    setIsUploading(false);
+    setCurrentView("documents");
+  }, []);
+
+  const handleReviewBack = useCallback(() => {
+    setSelectedRecord(null);
+  }, []);
 
   return (
     <div className="app">
       <main className="main">
-        <Topbar
-          crumb={
-            isUploading
-              ? "Upload"
-              : selectedRecord
-                ? selectedRecord.fileName || selectedRecord.name
-                : crumbs[currentView]
-          }
-        />
-        <div className={`content${isUploading ? " upload-content" : ""}`}>
+        <Topbar crumb={crumb} />
+        <div className={contentClassName}>
           {isUploading ? (
             <UploadView
-              onViewAll={() => {
-                setIsUploading(false);
-                setCurrentView("documents");
-              }}
-              onBack={() => setIsUploading(false)}
+              onViewAll={handleViewAll}
+              onBack={handleUploadBack}
             />
           ) : selectedRecord ? (
             <ReviewView
               document={selectedRecord}
-              onBack={() => setSelectedRecord(null)}
+              onBack={handleReviewBack}
             />
           ) : (
             <Dashboard
               title={title}
               subtitle={subtitle}
               onOpen={openReview}
-              onUpload={() => setIsUploading(true)}
+              onUpload={handleUpload}
             />
           )}
         </div>

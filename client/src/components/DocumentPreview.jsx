@@ -1,3 +1,4 @@
+import { memo, useCallback, useMemo } from "react";
 import { BASE_URL } from "../utils/documentApi";
 
 const getPreviewSrc = (fileUrl) => {
@@ -8,11 +9,38 @@ const getPreviewSrc = (fileUrl) => {
     return `${BASE_URL}${fileUrl}`;
 };
 
+const ExtractedFieldRow = memo(({ field }) => (
+    <div className="upload-field">
+        <div className="upload-field-label">{field.label}</div>
+        <div className="upload-field-value">
+            <span>{field.value}</span>
+            <span className="upload-confidence">{field.confidence}</span>
+        </div>
+    </div>
+));
+
 const DocumentPreview = ({ preview, onSave }) => {
-    const fields = Array.isArray(preview?.extractedData)
-        ? preview.extractedData
-        : [];
-    const previewSrc = getPreviewSrc(preview?.fileUrl);
+    const fields = useMemo(
+        () => (Array.isArray(preview?.extractedData) ? preview.extractedData : []),
+        [preview?.extractedData]
+    );
+    const previewSrc = useMemo(
+        () => getPreviewSrc(preview?.fileUrl),
+        [preview?.fileUrl]
+    );
+
+    const handleSaveDraft = useCallback(() => onSave("draft"), [onSave]);
+    const handleApprove = useCallback(() => onSave("approved"), [onSave]);
+    const handleDecline = useCallback(() => onSave("declined"), [onSave]);
+
+    const getFieldKey = useCallback(
+        (field, index) => `${field.label}-${index}`,
+        []
+    );
+    const renderField = useCallback(
+        (field) => <ExtractedFieldRow field={field} />,
+        []
+    );
 
     return (
         <section className="upload-review-panel show">
@@ -22,13 +50,13 @@ const DocumentPreview = ({ preview, onSave }) => {
                     <strong>{preview?.fileName}</strong>
                 </div>
                 <div className="button-container">
-                    <button onClick={() => onSave("draft")} type="button" className="draft-btn">
+                    <button onClick={handleSaveDraft} type="button" className="draft-btn">
                         📄 Save Draft
                     </button>
-                    <button onClick={() => onSave("approved")} type="button" className="approve-btn">
+                    <button onClick={handleApprove} type="button" className="approve-btn">
                         ✓ Approve
                     </button>
-                    <button onClick={() => onSave("declined")} type="button" className="decline-btn">
+                    <button onClick={handleDecline} type="button" className="decline-btn">
                         x Decline
                     </button>
                 </div>
@@ -76,4 +104,4 @@ const DocumentPreview = ({ preview, onSave }) => {
     );
 };
 
-export default DocumentPreview;
+export default memo(DocumentPreview);

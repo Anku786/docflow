@@ -1,16 +1,23 @@
-export const SearchHeader = (props) => {
-    const handleChange = (event) => {
+import { memo, useCallback } from "react";
+
+export const SearchHeader = memo((props) => {
+    const handleChange = useCallback((event) => {
+        const value = event.target.value;
         props.api.setFilterModel({
             ...props.api.getFilterModel(),
-            [props.column.getColId()]: event.target.value
+            [props.column.getColId()]: value
                 ? {
                     filterType: "text",
                     type: "contains",
-                    filter: event.target.value,
+                    filter: value,
                 }
                 : null,
         });
-    };
+    }, [props.api, props.column]);
+
+    const stopPropagation = useCallback((event) => {
+        event.stopPropagation();
+    }, []);
 
     return (
         <div className="custom-header">
@@ -21,8 +28,8 @@ export const SearchHeader = (props) => {
                 type="text"
                 placeholder="Search..."
                 onChange={handleChange}
-                onClick={(event) => event.stopPropagation()}
+                onClick={stopPropagation}
             />
         </div>
     );
-};
+});
