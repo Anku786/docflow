@@ -19,10 +19,6 @@ dotenv.config({
 
 const app = express();
 
-console.log(
-    "OpenAI key exists:",
-    Boolean(process.env.OPENAI_API_KEY)
-);
 
 app.use(
     cors({
