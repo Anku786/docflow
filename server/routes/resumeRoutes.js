@@ -7,12 +7,12 @@ const router = express.Router();
 router.get("/", getResumes);
 
 router.post(
-    "/resumes",
+    "/create",
     upload.single("file"),
     createResume
 );
 
-router.patch("/:id", updateResume);
+router.patch("update/:id", updateResume);
 
 router.delete("/delete", deleteResumes);
 

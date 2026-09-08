@@ -33,7 +33,8 @@ export const createResume = async (req, res) => {
             education,
             summary,
             rawText,
-            extractedData
+            extractedData,
+            match
         } = req.body;
 
         if (!req.file) {
@@ -59,6 +60,7 @@ export const createResume = async (req, res) => {
             experience: (experience) || 0,
             skills: skills ? JSON.parse(skills) : [],
             extractedData: JSON.parse(extractedData),
+            match: JSON.parse(match),
             status: "draft",
         });
 

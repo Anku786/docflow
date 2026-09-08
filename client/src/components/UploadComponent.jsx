@@ -70,7 +70,55 @@ const DocumentUploader = ({
 
             try {
                 if (documentType === "resume") {
-                    const matchResult = await extractResumeMatch(extractionResult.text);
+                    // const matchResult = await extractResumeMatch(extractionResult.text);
+                    const matchResult = {
+                        "success": true,
+                        "data": {
+                            "score": 78,
+                            "matchedSkills": [
+                                "HTML",
+                                "CSS",
+                                "JavaScript",
+                                "React.js",
+                                "Next.js",
+                                "Redux",
+                                "Git",
+                                "Node.js",
+                                "Express.js",
+                                "MongoDB",
+                                "MySQL",
+                                "Bootstrap"
+                            ],
+                            "missingSkills": [
+                                "Leadership/Mentoring",
+                                "Agile development methodologies",
+                                "Accessibility standards",
+                                "User testing/feedback loops",
+                                "Performance optimization techniques (explicit)",
+                                "Cross-browser compatibility (explicit details)",
+                                "UI/UX design principles (explicit details)"
+                            ],
+                            "strengths": [
+                                "Strong proficiency in core web technologies including HTML, CSS, JavaScript, and React.js.",
+                                "Solid 3 years 7 months of relevant front-end development experience, perfectly aligning with the job description's requirement.",
+                                "Proven track record of delivering multiple complex front-end and full-stack solutions.",
+                                "Experience building scalable web applications.",
+                                "Proficiency with modern frameworks like Next.js and state management with Redux.",
+                                "Full-stack development experience demonstrates a holistic understanding of web application development and backend collaboration.",
+                                "Strong problem-solving abilities and a proactive approach, evident from diverse project work.",
+                                "Experience with version control systems, specifically Git.",
+                                "A clear passion for creating user experiences, as indicated by her profile."
+                            ],
+                            "gaps": [
+                                "Lack of explicit experience or mention of leadership or mentoring roles.",
+                                "Absence of explicit experience with agile development methodologies.",
+                                "No stated experience or commitment to championing accessibility standards.",
+                                "Limited explicit detail on collaborating with UX/UI designers specifically for user feedback and user testing to make data-driven decisions.",
+                                "While scalability is mentioned, detailed experience with performance optimization techniques is not explicitly highlighted.",
+                                "Cross-browser compatibility and responsive design principles are implied by experience but not explicitly emphasized as strong knowledge points."
+                            ]
+                        }
+                    }
                     fields = [
                         ...fields,
                         ...mapResumeMatchToFields(matchResult?.data),

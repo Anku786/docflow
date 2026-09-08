@@ -51,6 +51,10 @@ const resumeSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        match: {
+            type: Object,
+            default: {}
+        },
         
         status: {
             type: String,

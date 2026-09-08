@@ -284,6 +284,11 @@ export const extractResumePayload = (fields = []) => {
             ? skillsValue.split(",").map((skill) => skill.trim()).filter(Boolean)
             : [],
         experience: yearsMatch ? Number(yearsMatch[1]) : 0,
+        match: {
+            match_score: getValue("Match Score"),
+            matched_skill: getValue("Matched Skills"),
+            missing_skills: getValue("Missing Skills")
+        }
     };
 };
 

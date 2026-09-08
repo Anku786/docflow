@@ -66,32 +66,6 @@ export const getDocuments = async (req, res) => {
     }
 };
 
-export const getDocumentById = async (req, res) => {
-    try {
-        const document = await Document.findById(
-            req.params.id
-        );
-
-        if (!document) {
-            return res.status(404).json({
-                success: false,
-                message: "Document not found",
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            data: document,
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Failed to fetch document",
-        });
-    }
-};
-
 export const deleteDocuments = async (req, res) => {
     try {
         const { ids } = req.body;

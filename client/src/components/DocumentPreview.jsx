@@ -1,12 +1,12 @@
 import { memo, useCallback, useMemo } from "react";
-import { BASE_URL } from "../utils/documentApi";
+import { API_BASE_URL } from "../constants/route-constants";
 
 const getPreviewSrc = (fileUrl) => {
     if (!fileUrl) return null;
     if (fileUrl.startsWith("blob:") || fileUrl.startsWith("http")) {
         return fileUrl;
     }
-    return `${BASE_URL}${fileUrl}`;
+    return `${API_BASE_URL}${fileUrl}`;
 };
 
 const ExtractedFieldRow = memo(({ field }) => (
@@ -89,9 +89,9 @@ const DocumentPreview = ({ preview, onSave }) => {
                                 </div>
                                 <div className="upload-field-value">
                                     <span>{field.value}</span>
-                                    <span className="upload-confidence">
+                                    {/* <span className="upload-confidence">
                                         {field.confidence}
-                                    </span>
+                                    </span> */}
                                 </div>
                             </div>
                         ))

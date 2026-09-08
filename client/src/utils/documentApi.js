@@ -1,7 +1,4 @@
-export const BASE_URL = import.meta.env.VITE_API_URL;
-
-const API_BASE_URL =   `${import.meta.env.VITE_API_URL}api/documents`;
-
+import { DELETE_DOCUMENT, EXTRACT_INVOICE, GET_DOCUMENT, SAVE_DOCUMENT } from "../constants/route-constants";
 
 export const saveDocument = async ({
     file,
@@ -18,7 +15,7 @@ export const saveDocument = async ({
     formData.append("status", status || "draft");
     formData.append("extractedData", JSON.stringify(extractedData));
 
-    const response = await fetch(`${API_BASE_URL}`, {
+    const response = await fetch(`${SAVE_DOCUMENT}`, {
         method: "POST",
         body: formData,
     });
@@ -32,7 +29,7 @@ export const saveDocument = async ({
 };
 
 export const getDocuments = async (signal) => {
-    const response = await fetch(API_BASE_URL, { signal });
+    const response = await fetch(GET_DOCUMENT, { signal });
 
     const result = await response.json();
 
@@ -46,7 +43,7 @@ export const getDocuments = async (signal) => {
 };
 
 export const deleteDocuments = async (ids) => {
-    const response = await fetch(`${API_BASE_URL}/delete`, {
+    const response = await fetch(`${DELETE_DOCUMENT}`, {
         method: "DELETE",
         headers: {
             "Content-Type": "application/json",
@@ -64,7 +61,7 @@ export const deleteDocuments = async (ids) => {
 
 export const updateDocumentStatus = async (id, status) => {
     const response = await fetch(
-        `${API_BASE_URL}/documents/${id}`,
+        `${UPDATE_DOCUMENT}/${id}`,
         {
             method: "PUT",
             headers: {
@@ -87,7 +84,7 @@ export const updateDocumentStatus = async (id, status) => {
 
 export const extractInvoice = async (rawText) => {
     const response = await fetch(
-        `${API_BASE_URL}/extract-invoice`,
+        `${EXTRACT_INVOICE}`,
         {
             method: "POST",
             headers: {

@@ -25,19 +25,21 @@ const FileNameCell = memo((params) => (
   </div>
 ));
 
-const SkillCell = memo((params) => {
-  const rawSkills = params?.data?.skills || [];
-
-  const skills = (Array.isArray(rawSkills) ? rawSkills : [rawSkills])
-    .flatMap((item) => item.split(/,\s*|\s{2,}/))
-    .map((skill) => skill.trim())
-    .filter(Boolean);
+const SkillListCell = memo(({ value, type = "default" }) => {
+  const skills = Array.isArray(value)
+    ? value
+      .map((skill) => skill.trim())
+      .filter(Boolean)
+    : (value || "")
+      .split(",")
+      .map((skill) => skill.trim())
+      .filter(Boolean);
 
   const visibleSkills = skills.slice(0, 5);
   const remainingSkills = skills.slice(5);
-
+  console.log("asas____",visibleSkills, value, type)
   return (
-    <div className="skills-cell">
+    <div className={`skills-cell ${type}`}>
       {visibleSkills.map((skill) => (
         <span className="skill-chip" key={skill}>
           {skill}
@@ -45,7 +47,10 @@ const SkillCell = memo((params) => {
       ))}
 
       {remainingSkills.length > 0 && (
-        <span className="skills-more">
+        <span
+          className="skills-more"
+          title={skills.join(", ")}
+        >
           +{remainingSkills.length} more
         </span>
       )}
@@ -53,12 +58,41 @@ const SkillCell = memo((params) => {
   );
 });
 
+const SkillCell = memo((params) => {
+  console.log("asas)))))",params?.data)
+  return (
+    <SkillListCell
+      value={params?.data?.skills}
+      type="default"
+    />
+  );
+});
+
+
+const MatchedSkillCell = memo((params) => {
+  return (
+    <SkillListCell
+      value={params?.data?.match?.matched_skill}
+      type="matched"
+    />
+  );
+});
+
+const MissingSkillCell = memo((params) => {
+  return (
+    <SkillListCell
+      value={params?.data?.match?.missing_skills}
+      type="missing"
+    />
+  );
+});
+
 const MatchScoreCell = memo((params) => {
-  const score = params.value;
+  const score = params.value?.match_score;
   if (score == null) return "-";
   return (
     <span className={`score ${score >= 80 ? "high" : "low"}`}>
-      {score}%
+      {score}
     </span>
   );
 });
@@ -85,15 +119,14 @@ const formatUploadedDate = (params) => {
 };
 
 const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
-  console.log(rows)
   const columnDefs = useMemo(() => {
     const fileNameColumn = {
       field: "fileName",
       headerName: documentType === "resume" ? "Resume" : "Document",
-      flex: documentType === "resume" ? 1.5 : 2,
       filter: "agTextColumnFilter",
       headerComponent: SearchHeader,
       cellRenderer: FileNameCell,
+      minWidth: 250,
     };
 
     if (documentType === "resume") {
@@ -101,25 +134,28 @@ const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
         {
           headerName: "",
           width: 50,
+          minWidth: 50,
+          maxWidth: 50,
           checkboxSelection: true,
         },
         fileNameColumn,
         {
           field: "candidateName",
           headerName: "Candidate",
-          flex: 1,
+          minWidth: 180,
         },
         {
           field: "experience",
           headerName: "Experience",
           width: 120,
+          minWidth: 120,
           valueFormatter: formatExperience,
         },
         {
           field: "skills",
           headerName: "Skills",
-          flex: 1.5,
           cellRenderer: SkillCell,
+          minWidth: 400,
           tooltipValueGetter: (params) => {
             const rawSkills = params.data?.skills || [];
 
@@ -132,21 +168,58 @@ const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
           },
         },
         {
-          field: "matchScore",
+          field: "matched_skills",
+          headerName: "Matched Skills",
+          cellRenderer: MatchedSkillCell,
+          minWidth: 400,
+          tooltipValueGetter: (params) => {
+            const rawSkills = params.data?.match?.matched_skill || [];
+
+            const skills = (Array.isArray(rawSkills) ? rawSkills : [rawSkills])
+              .flatMap((item) => item.split(/,\s*|\s{2,}/))
+              .map((skill) => skill.trim())
+              .filter(Boolean);
+
+            return skills.join(", ");
+          },
+        },
+        {
+          field: "missing_skills",
+          headerName: "Missing Skills",
+          cellRenderer: MissingSkillCell,
+          minWidth: 400,
+          tooltipValueGetter: (params) => {
+            const rawSkills = params.data?.match?.missing_skills || [];
+
+            const skills = (Array.isArray(rawSkills) ? rawSkills : [rawSkills])
+              .flatMap((item) => item.split(/,\s*|\s{2,}/))
+              .map((skill) => skill.trim())
+              .filter(Boolean);
+
+            return skills.join(", ");
+          },
+        },
+        {
+          field: "match",
           headerName: "Match Score",
           width: 130,
+          minWidth: 130,
+          maxWidth: 160,
           cellRenderer: MatchScoreCell,
         },
         {
           field: "status",
           headerName: "Status",
           width: 130,
+          minWidth: 130,
+          maxWidth: 160,
           cellRenderer: StatusCell,
         },
         {
           field: "createdAt",
           headerName: "Uploaded",
-          width: 130,
+          width: 150,
+          minWidth: 150,
           valueFormatter: formatUploadedDate,
         },
       ];
@@ -156,28 +229,23 @@ const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
       {
         headerName: "",
         width: 50,
+        minWidth: 50,
+        maxWidth: 50,
         checkboxSelection: true,
       },
       fileNameColumn,
-      {
-        headerName: "Type",
-        field: "documentType",
-        filter: "agTextColumnFilter",
-        headerComponent: SearchHeader,
-        flex: 1,
-      },
       {
         headerName: "Status",
         field: "status",
         filter: "agTextColumnFilter",
         headerComponent: SearchHeader,
-        flex: 1,
         cellRenderer: StatusCell,
+        minWidth: 150,
       },
       {
         headerName: "Amount",
         field: "amount",
-        flex: 1,
+        minWidth: 150,
       },
     ];
   }, [documentType]);

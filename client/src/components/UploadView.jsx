@@ -46,7 +46,7 @@ const UploadView = ({ onViewAll, onBack }) => {
       toast.error("Failed to save document!");
     }
   }, [documentType, extractedFields, extractionResult, goBack, uploadedFile]);
-
+  console.log(extractedFields)
   const handleSaveResume = useCallback(async (status) => {
     try {
       const payload = extractResumePayload(extractedFields);
@@ -63,6 +63,7 @@ const UploadView = ({ onViewAll, onBack }) => {
         goBack();
       }
     } catch (error) {
+      console.log(error)
       toast.error("Failed to save resume!");
     }
   }, [documentType, extractedFields, goBack, uploadedFile]);

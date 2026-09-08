@@ -3,7 +3,6 @@ import express from "express";
 import {
     createDocument,
     getDocuments,
-    getDocumentById,
     deleteDocuments,
     updateDocumentStatus,
 } from "../controllers/documentController.js";
@@ -12,21 +11,17 @@ import { upload } from "../middleware/upload.js";
 
 const router = express.Router();
 
-// router.post("/", createDocument);
-
 router.get("/", getDocuments);
-
-router.get("/:id", getDocumentById);
 
 router.delete("/delete", deleteDocuments);
 
 router.put(
-    "/documents/:id",
+    "update/:id",
     updateDocumentStatus
 );
 
 router.post(
-    "/",
+    "/create",
     upload.single("file"),
     createDocument
 );

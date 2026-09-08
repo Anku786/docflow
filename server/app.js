@@ -1,3 +1,7 @@
+import dotenv from "dotenv";
+
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 
@@ -23,7 +27,7 @@ app.get("/", (req, res) => {
     });
 });
 
-app.use("/api/documents", documentRoutes);
-app.use("/api/resumes", resumeRoutes);
+app.use("/documents", documentRoutes);
+app.use("/resumes", resumeRoutes);
 
 export default app;

@@ -15,7 +15,7 @@ const TYPE_FILTERS = [
 const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [rows, setRows] = useState([]);
-  const [documentType, setDocumentType] = useState("invoice");
+  const [documentType, setDocumentType] = useState("resume");
 
   useEffect(() => {
     const controller = new AbortController();

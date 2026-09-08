@@ -1,9 +1,9 @@
-const API_BASE_URL = `${import.meta.env.VITE_API_URL}api/resumes`;
+import { DELETE_RESUME, EXTRACT_RESUME, GET_RESUME, SAVE_RESUME, UPDATE_RESUME } from "../constants/route-constants";
 
 export const getResumes = async (signal) => {
-    const response = await fetch(`${API_BASE_URL}`, { signal });
+    const response = await fetch(`${GET_RESUME}`, { signal });
     const result = await response.json();
-
+    console.log(result)
     if (!response.ok) {
         throw new Error(
             result.message || "Failed to fetch documents"
@@ -23,7 +23,8 @@ export const saveResume = async ({
     skills,
     extractedData,
     confidence,
-    status
+    status,
+    match
 }) => {
     const formData = new FormData();
 
@@ -47,8 +48,9 @@ export const saveResume = async ({
     );
 
     formData.append("confidence", confidence || 0);
+    formData.append("match", JSON.stringify(match) || {})
     const response = await fetch(
-        `${API_BASE_URL}/resumes`,
+        `${SAVE_RESUME}`,
         {
             method: "POST",
             body: formData,
@@ -67,7 +69,7 @@ export const saveResume = async ({
 };
 
 export const updateResume = async (id, status) => {
-    const response = await fetch(`${API_BASE_URL}/${id}`, {
+    const response = await fetch(`${UPDATE_RESUME}/${id}`, {
         method: "PATCH",
         headers: {
             "Content-Type": "application/json",
@@ -86,7 +88,7 @@ export const updateResume = async (id, status) => {
 
 export const deleteResumes = async (ids) => {
     const response = await fetch(
-        `${API_BASE_URL}/delete`,
+        `${DELETE_RESUME}`,
         {
             method: "DELETE",
             headers: {
@@ -109,7 +111,7 @@ export const deleteResumes = async (ids) => {
 
 export const extractResumeMatch = async (resumeText) => {
     const response = await fetch(
-        `${API_BASE_URL}/match`,
+        `${EXTRACT_RESUME}`,
         {
             method: "POST",
             headers: {

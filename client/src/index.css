@@ -1288,7 +1288,6 @@ input[type="radio"] {
 .empty-state {
   background: #ffffff;
   border: 1px solid #e7e7e7;
-  border-radius: 16px;
   min-height: 370px;
   display: flex;
   flex-direction: column;
@@ -1350,6 +1349,7 @@ input[type="radio"] {
 
 .section {
   margin-top: 44px;
+  padding: 1rem;
 }
 
 .section-header {
