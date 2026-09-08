@@ -12,43 +12,56 @@ const TYPE_FILTERS = [
   { value: "resume", label: "Resume" },
 ];
 
-const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
+const Dashboard = ({ title, subtitle, onOpen, onUpload, onLoadingChange }) => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [rows, setRows] = useState([]);
   const [documentType, setDocumentType] = useState("resume");
 
   useEffect(() => {
     const controller = new AbortController();
+    let cancelled = false;
 
     const loadRows = async () => {
+      onLoadingChange(true);
       try {
         const result =
           documentType === "resume"
             ? await getResumes(controller.signal)
             : await getDocuments(controller.signal);
 
-        if (!controller.signal.aborted) {
-          setRows(result?.data || []);
-          setSelectedIds([]);
+        if (cancelled || controller.signal.aborted) {
+          return;
         }
+
+        setRows(result?.data || []);
+        setSelectedIds([]);
       } catch (error) {
-        if (error.name === "AbortError") return;
-        console.error("Failed to fetch records:", error);
+        if (cancelled || error.name === "AbortError") {
+          return;
+        }
         toast.error("Failed to load documents");
+      } finally {
+        if (!cancelled) {
+          onLoadingChange(false);
+        }
       }
     };
 
     loadRows();
 
-    return () => controller.abort();
-  }, [documentType]);
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [documentType, onLoadingChange]);
 
   const handleBulkDelete = useCallback(async () => {
+    onLoadingChange(true)
     try {
       const deleteRecords =
         documentType === "resume" ? deleteResumes : deleteDocuments;
       const response = await deleteRecords(selectedIds);
-
+      onLoadingChange(false)
       if (response?.success) {
         setSelectedIds([]);
         setRows((current) =>
@@ -57,6 +70,7 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload }) => {
         toast.success("Document deleted successfully!");
       }
     } catch (error) {
+      onLoadingChange(false)
       toast.error("Failed to delete document!");
     }
   }, [documentType, selectedIds]);

@@ -5,6 +5,7 @@ import { extractPdfText } from "../utils/extractPdfText";
 import { extractInvoice } from "../utils/documentApi";
 import { extractResumeMatch } from "../utils/resumeApi";
 import { mapResumeMatchToFields } from "../utils/parseResume";
+import Loader from "./common/LoadingOverlay";
 
 const ACCEPTED = ".pdf";
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -22,6 +23,7 @@ const DocumentUploader = ({
 }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isLoading, setLoading] = useState(false)
     const [fileName, setFileName] = useState("");
     const [progress, setProgress] = useState(0);
     const inputRef = useRef(null);
@@ -54,7 +56,7 @@ const DocumentUploader = ({
         isProcessingRef.current = true;
         setIsProcessing(true);
         setProgress(25);
-
+        setLoading(true);
         try {
             const previewUrl = URL.createObjectURL(file);
             previewUrlRef.current = previewUrl;
@@ -124,7 +126,41 @@ const DocumentUploader = ({
                         ...mapResumeMatchToFields(matchResult?.data),
                     ];
                 } else {
-                    const invoiceResult = await extractInvoice(extractionResult.text);
+                    // const invoiceResult = await extractInvoice(extractionResult.text);
+                    const invoiceResult = {
+                        "success": true,
+                        "data": {
+                            "invoiceType": "stay",
+                            "overallConfidence": 1,
+                            "fields": {
+                                "vendorName": {
+                                    "value": "MAKEMYTRIP (INDIA) PRIVATE LIMITED",
+                                    "confidence": 1,
+                                    "evidence": "MAKEMYTRIP (INDIA) PRIVATE LIMITED"
+                                },
+                                "invoiceNumber": {
+                                    "value": "M06HL27I03562364",
+                                    "confidence": 1,
+                                    "evidence": "Invoice No.  M06HL27I03562364"
+                                },
+                                "invoiceDate": {
+                                    "value": "31 May 2026",
+                                    "confidence": 1,
+                                    "evidence": "Date  31 May 2026"
+                                },
+                                "totalAmount": {
+                                    "value": "7892.67",
+                                    "confidence": 1,
+                                    "evidence": "Grand Total   ₹7892.67"
+                                },
+                                "currency": {
+                                    "value": "INR",
+                                    "confidence": 1,
+                                    "evidence": "₹7892.67"
+                                }
+                            }
+                        }
+                    }
                     const mapped = mapInvoiceExtractionToFields(invoiceResult?.data);
                     if (mapped.length) {
                         fields = mapped;
@@ -145,9 +181,11 @@ const DocumentUploader = ({
             revokePreviewUrl();
             toast.error(error.message || "Failed to process document");
             setProgress(0);
+            setLoading(false)
         } finally {
             isProcessingRef.current = false;
             setIsProcessing(false);
+            setLoading(false)
         }
     }, [documentType, onProcessed, revokePreviewUrl]);
 
@@ -209,55 +247,57 @@ const DocumentUploader = ({
 
     return (
         <div>
-            <section className="upload-card">
-                <div className="selector">
-                    <div className="document-type-selector">
-                        <input
-                            type="radio"
-                            name="documentType"
-                            value="invoice"
-                            checked={documentType === "invoice"}
-                            onChange={handleSelectInvoice}
-                        />
-                        <label>Invoice</label>
+            <Loader isActive={isLoading}>
+                <section className="upload-card">
+                    <div className="selector">
+                        <div className="document-type-selector">
+                            <input
+                                type="radio"
+                                name="documentType"
+                                value="invoice"
+                                checked={documentType === "invoice"}
+                                onChange={handleSelectInvoice}
+                            />
+                            <label>Invoice</label>
+                        </div>
+                        <div className="document-type-selector">
+                            <input
+                                type="radio"
+                                name="documentType"
+                                value="resume"
+                                checked={documentType === "resume"}
+                                onChange={handleSelectResume}
+                            />
+                            <label>Resume</label>
+                        </div>
                     </div>
-                    <div className="document-type-selector">
-                        <input
-                            type="radio"
-                            name="documentType"
-                            value="resume"
-                            checked={documentType === "resume"}
-                            onChange={handleSelectResume}
-                        />
-                        <label>Resume</label>
-                    </div>
-                </div>
-                <div
-                    className={dropZoneClassName}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="upload-icon">↑</div>
-                    <h2>Drag & drop your documents here</h2>
-                    <p>Upload PDF invoices or resumes</p>
-                    <button
-                        type="button"
-                        className="browse-btn"
-                        onClick={handleBrowseClick}
+                    <div
+                        className={dropZoneClassName}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
                     >
-                        Browse files
-                    </button>
-                    <input
-                        ref={inputRef}
-                        id="fileInput"
-                        type="file"
-                        accept={ACCEPTED}
-                        onChange={handleFileChange}
-                    />
-                    <div className="file-info">PDF · Maximum 25 MB per file</div>
-                </div>
-            </section>
+                        <div className="upload-icon">↑</div>
+                        <h2>Drag & drop your documents here</h2>
+                        <p>Upload PDF invoices or resumes</p>
+                        <button
+                            type="button"
+                            className="browse-btn"
+                            onClick={handleBrowseClick}
+                        >
+                            Browse files
+                        </button>
+                        <input
+                            ref={inputRef}
+                            id="fileInput"
+                            type="file"
+                            accept={ACCEPTED}
+                            onChange={handleFileChange}
+                        />
+                        <div className="file-info">PDF · Maximum 25 MB per file</div>
+                    </div>
+                </section>
+            </Loader>
             {(isProcessing || progress > 0) && (
                 <section className="processing-card show">
                     <div className="processing-header">

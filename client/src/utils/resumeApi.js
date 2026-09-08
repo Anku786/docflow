@@ -3,7 +3,6 @@ import { DELETE_RESUME, EXTRACT_RESUME, GET_RESUME, SAVE_RESUME, UPDATE_RESUME }
 export const getResumes = async (signal) => {
     const response = await fetch(`${GET_RESUME}`, { signal });
     const result = await response.json();
-    console.log(result)
     if (!response.ok) {
         throw new Error(
             result.message || "Failed to fetch documents"

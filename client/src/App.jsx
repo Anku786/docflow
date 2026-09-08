@@ -1,9 +1,10 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import Dashboard from "./components/Dashboard";
 import ReviewView from "./components/ReviewView";
 import { Topbar } from "./components/Topbar";
 import UploadView from "./components/UploadView";
 import { Toaster } from "react-hot-toast";
+import Loader from "./components/common/LoadingOverlay";
 
 const crumbs = {
   documents: "Documents",
@@ -15,6 +16,7 @@ const App = () => {
   const [currentView, setCurrentView] = useState("documents");
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const title = useMemo(
     () =>
@@ -66,34 +68,41 @@ const App = () => {
   const handleReviewBack = useCallback(() => {
     setSelectedRecord(null);
   }, []);
-
+  const handleLoading = useCallback((value) => {
+    setIsLoading(value);
+  }, []);
   return (
-    <div className="app">
-      <main className="main">
-        <Topbar crumb={crumb} />
-        <div className={contentClassName}>
-          {isUploading ? (
-            <UploadView
-              onViewAll={handleViewAll}
-              onBack={handleUploadBack}
-            />
-          ) : selectedRecord ? (
-            <ReviewView
-              document={selectedRecord}
-              onBack={handleReviewBack}
-            />
-          ) : (
-            <Dashboard
-              title={title}
-              subtitle={subtitle}
-              onOpen={openReview}
-              onUpload={handleUpload}
-            />
-          )}
-        </div>
-      </main>
-      <Toaster position="top-right" />
-    </div>
+    <Loader isActive={isLoading}>
+      <div className="app">
+        <main className="main">
+          <Topbar crumb={crumb} />
+          <div className={contentClassName}>
+            {isUploading ? (
+              <UploadView
+                onViewAll={handleViewAll}
+                onBack={handleUploadBack}
+                setLoading={handleLoading}
+              />
+            ) : selectedRecord ? (
+              <ReviewView
+                document={selectedRecord}
+                onBack={handleReviewBack}
+                setLoading={handleLoading}
+              />
+            ) : (
+              <Dashboard
+                title={title}
+                subtitle={subtitle}
+                onOpen={openReview}
+                onUpload={handleUpload}
+                onLoadingChange={handleLoading}
+              />
+            )}
+          </div>
+        </main>
+        <Toaster position="top-right" />
+      </div>
+    </Loader>
   );
 };
 

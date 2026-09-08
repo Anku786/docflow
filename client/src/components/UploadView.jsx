@@ -7,7 +7,7 @@ import { saveResume } from "../utils/resumeApi";
 import { extractTotalAmount } from "../utils/parseInvoice";
 import { extractResumePayload } from "../utils/parseResume";
 
-const UploadView = ({ onViewAll, onBack }) => {
+const UploadView = ({ onViewAll, onBack, setLoading }) => {
   const [showReview, setShowReview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [documentType, setDocumentType] = useState("invoice");
@@ -15,7 +15,7 @@ const UploadView = ({ onViewAll, onBack }) => {
   const [extractionResult, setExtractionResult] = useState(null);
   const [extractedFields, setExtractedFields] = useState([]);
 
-  const handleProcessed = useCallback(({ file, previewUrl: nextPreviewUrl, fields, extractionResult: nextExtraction }) => {
+  const handleProcessed = useCallback(({ file, previewUrl: nextPreviewUrl, fields, extractionResult: nextExtraction, setLoading }) => {
     setUploadedFile(file);
     setPreviewUrl(nextPreviewUrl);
     setExtractedFields(fields);
@@ -28,6 +28,7 @@ const UploadView = ({ onViewAll, onBack }) => {
   }, [onViewAll, onBack]);
 
   const handleSaveDocument = useCallback(async (status) => {
+    setLoading(true)
     const totalAmount = extractTotalAmount(extractionResult?.text);
     try {
       const result = await saveDocument({
@@ -37,17 +38,19 @@ const UploadView = ({ onViewAll, onBack }) => {
         documentType,
         amount: totalAmount,
       });
-
+      setLoading(false)
       if (result?.success) {
         toast.success("Document saved successfully!");
         goBack();
       }
     } catch (error) {
       toast.error("Failed to save document!");
+      setLoading(false)
     }
   }, [documentType, extractedFields, extractionResult, goBack, uploadedFile]);
-  console.log(extractedFields)
+
   const handleSaveResume = useCallback(async (status) => {
+    setLoading(true)
     try {
       const payload = extractResumePayload(extractedFields);
       const result = await saveResume({
@@ -57,13 +60,13 @@ const UploadView = ({ onViewAll, onBack }) => {
         status,
         documentType,
       });
-
+      setLoading(false)
       if (result?.success) {
         toast.success("Resume saved successfully!");
         goBack();
       }
     } catch (error) {
-      console.log(error)
+      setLoading(false)
       toast.error("Failed to save resume!");
     }
   }, [documentType, extractedFields, goBack, uploadedFile]);
@@ -106,6 +109,7 @@ const UploadView = ({ onViewAll, onBack }) => {
         documentType={documentType}
         onDocumentTypeChange={setDocumentType}
         onProcessed={handleProcessed}
+        setLoading={setLoading}
       />
 
       {showReview && (
