@@ -87,6 +87,16 @@ const UploadView = ({ onViewAll, onBack }) => {
 
   return (
     <div className="upload-view">
+      <div className="review-header">
+        <button
+          type="button"
+          className="back-button"
+          onClick={onBack}
+          aria-label="Back to documents"
+        >
+          ←
+        </button>
+      </div>
       <section className="upload-header">
         <h1>Upload documents</h1>
         <p>Turn messy documents into structured, queryable data.</p>
