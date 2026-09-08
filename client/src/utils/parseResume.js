@@ -10,14 +10,11 @@ export const parseResume = (text) => {
     // -------------------------
     // Name
     // -------------------------
-    const nameMatch = normalizedText.match(
-        /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\s+(?=A\s+web|PROFILE|SUMMARY|EXPERIENCE)/i
-    );
-
+    const nameMatch = extractName(normalizedText);
     if (nameMatch) {
         fields.push({
             label: "Name",
-            value: nameMatch[1].trim(),
+            value: nameMatch?.split(" ")?.[0],
             confidence: "95%",
         });
     }
@@ -266,6 +263,114 @@ export const parseResume = (text) => {
     return fields;
 };
 
+// -------------------------
+// Dynamic Name Extraction
+// -------------------------
+
+const extractName = (text) => {
+    const header = text.slice(0, 500).trim();
+
+    // Remove common contact information from the header
+    let cleaned = header
+        // email
+        .replace(
+            /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+            ""
+        )
+
+        // phone numbers
+        .replace(
+            /(?:\+?\d[\d\s().-]{7,}\d)/g,
+            ""
+        )
+
+        // URLs
+        .replace(
+            /https?:\/\/\S+/gi,
+            ""
+        )
+
+        // LinkedIn / GitHub without protocol
+        .replace(
+            /\b(?:linkedin|github)\.com\/\S+/gi,
+            ""
+        )
+
+        // separators
+        .replace(/[|•·]+/g, " ")
+
+        .replace(/\s+/g, " ")
+        .trim();
+
+
+    // Remove common location patterns from the end
+    cleaned = cleaned
+        .replace(
+            /\s+[A-Za-z .'-]+,\s*[A-Za-z .'-]+$/,
+            ""
+        )
+        .trim();
+
+    // Split into words
+    const words = cleaned.split(/\s+/);
+
+    /*
+     * Name is normally the first 2-4 words.
+     *
+     * Stop if we encounter common resume section/title words.
+     */
+    const stopWords = new Set([
+        "summary",
+        "profile",
+        "experience",
+        "professional",
+        "education",
+        "skills",
+        "technical",
+        "projects",
+        "certifications",
+        "objective",
+        "contact",
+        "about",
+        "frontend",
+        "backend",
+        "developer",
+        "engineer",
+        "software",
+        "designer",
+        "manager",
+    ]);
+
+    const nameWords = [];
+
+    for (const word of words) {
+        const normalizedWord = word
+            .replace(/[^a-zA-Z]/g, "")
+            .toLowerCase();
+
+        if (!normalizedWord) {
+            continue;
+        }
+
+        if (stopWords.has(normalizedWord)) {
+            break;
+        }
+
+        nameWords.push(word);
+
+        if (nameWords.length === 4) {
+            break;
+        }
+    }
+
+    // A person's name should generally have at least 2 words
+    if (nameWords.length >= 2) {
+        return nameWords.join(" ").trim();
+    }
+
+    return "";
+};
+
 export const extractResumePayload = (fields = []) => {
     const getValue = (label) =>
         fields.find(
@@ -273,8 +378,6 @@ export const extractResumePayload = (fields = []) => {
         )?.value || "";
 
     const skillsValue = getValue("Skills");
-    const experienceValue = getValue("Total Experience");
-    const yearsMatch = experienceValue.match(/(\d+)\s*year/i);
 
     return {
         candidateName: getValue("Name"),
@@ -283,7 +386,7 @@ export const extractResumePayload = (fields = []) => {
         skills: skillsValue
             ? skillsValue.split(",").map((skill) => skill.trim()).filter(Boolean)
             : [],
-        experience: yearsMatch ? Number(yearsMatch[1]) : 0,
+        experience: getValue("Total Experience"),
         match: {
             match_score: getValue("Match Score"),
             matched_skill: getValue("Matched Skills"),
@@ -321,5 +424,40 @@ export const mapResumeMatchToFields = (match) => {
         });
     }
 
+    if(Array.isArray(match.workExperience)){
+        const result = calculateTotalExperience(match.workExperience);
+        fields.push({
+            label: "Total Experience",
+            value: result?.formatted,
+            confidence: "95%",
+        });
+    }
+
     return fields;
 };
+
+const calculateTotalExperience = (experienceArray) => {
+    let totalMonths = 0;
+
+    experienceArray.forEach(exp => {
+        const start = new Date(exp.startDate);
+        // If endDate is "Present", use the current system date
+        const end = exp.endDate.toLowerCase() === 'present' ? new Date() : new Date(exp.endDate);
+
+        // Calculate the difference in months
+        const yearDiff = end.getFullYear() - start.getFullYear();
+        const monthDiff = end.getMonth() - start.getMonth();
+
+        totalMonths += (yearDiff * 12) + monthDiff;
+    });
+
+    const years = Math.floor(totalMonths / 12);
+    const months = totalMonths % 12;
+
+    return {
+        totalMonths,
+        formatted: `${years} years and ${months} months`
+    };
+}
+
+

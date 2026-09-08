@@ -107,7 +107,7 @@ const MatchScoreCell = memo((params) => {
 const StatusCell = memo((params) => <StatusBadge status={params.value} />);
 
 const formatExperience = (params) =>
-  params.value ? `${params.value} years` : "-";
+  params.value ? `${params.value}` : "-";
 
 const formatSkills = (params) => {
   if (!Array.isArray(params.value)) return "-";
@@ -133,7 +133,7 @@ const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
       filter: "agTextColumnFilter",
       headerComponent: SearchHeader,
       cellRenderer: FileNameCell,
-      minWidth: 250,
+      minWidth: 270,
     };
 
     if (documentType === "resume") {
@@ -149,14 +149,22 @@ const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
         {
           field: "candidateName",
           headerName: "Candidate",
-          minWidth: 180,
+          minWidth: 150,
         },
         {
           field: "experience",
           headerName: "Experience",
-          width: 120,
-          minWidth: 120,
+          width: 180,
+          minWidth: 180,
           valueFormatter: formatExperience,
+        },
+        {
+          field: "match",
+          headerName: "Match Score",
+          width: 130,
+          minWidth: 130,
+          maxWidth: 160,
+          cellRenderer: MatchScoreCell,
         },
         {
           field: "skills",
@@ -205,14 +213,6 @@ const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
 
             return skills.join(", ");
           },
-        },
-        {
-          field: "match",
-          headerName: "Match Score",
-          width: 130,
-          minWidth: 130,
-          maxWidth: 160,
-          cellRenderer: MatchScoreCell,
         },
         {
           field: "status",

@@ -3,6 +3,11 @@
     height: 500px;
     padding: 1rem;
     min-width: 0;
+    --ag-checkbox-border-radius: 5px;
+    --ag-checkbox-border-width: 1px;
+    --ag-checkbox-background-color: #ffffff;
+    --ag-checkbox-checked-background-color: #6366f1;
+    --ag-checkbox-checked-border-color: #6366f1;
 }
 
 
@@ -115,4 +120,13 @@
     font-size: 12px;
     cursor: help;
     white-space: nowrap;
+}
+
+
+.documents-grid .ag-row-selected {
+    background: #f7f8fc !important;
+}
+
+.documents-grid .ag-row-selected .ag-cell {
+    background: transparent !important;
 }
