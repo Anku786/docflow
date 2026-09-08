@@ -1425,6 +1425,12 @@ input[type="radio"] {
 
 .documents-header h3 {
   font-size: 16px;
+  padding: 0 1rem;
+  border-right: 1px solid #e7e7e7;
+}
+
+.documents-header label {
+  font-size: 14px;
 }
 
 

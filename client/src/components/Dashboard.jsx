@@ -111,6 +111,7 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload, onLoadingChange }) => {
           <div className="header">
             <div className="filters">
               <h3>Recent documents</h3>
+              <label>Document Type: </label>
               <select
                 className="filter"
                 value={documentType}
