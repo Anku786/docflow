@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { parseDocument, mapInvoiceExtractionToFields } from "../utils/parseDocument";
-import { extractPdfText } from "../utils/extractPdfText";
-import { extractInvoice } from "../utils/documentApi";
-import { extractResumeMatch } from "../utils/resumeApi";
-import { mapResumeMatchToFields } from "../utils/parseResume";
-import Loader from "./common/LoadingOverlay";
+import Loader from "../common/LoadingOverlay";
+import { parseDocument, mapInvoiceExtractionToFields } from "../../utils/parseDocument";
+import { extractPdfText } from "../../utils/extractPdfText";
+import { extractInvoice } from "../../services/document-api";
+import { extractResumeMatch } from "../../services/resume-api";
+import { mapResumeMatchToFields } from "../../utils/parseResume";
 
 const ACCEPTED = ".pdf";
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -72,14 +72,18 @@ const DocumentUploader = ({
             try {
                 if (documentType === "resume") {
                     const matchResult = await extractResumeMatch(extractionResult.text);
-                    fields = [
-                        ...fields,
-                        ...mapResumeMatchToFields(matchResult?.data),
-                    ];
+                    const matchFields = mapResumeMatchToFields(
+                        matchResult?.data
+                    );
+                    if (matchFields?.length) {
+                        fields = [
+                            ...fields,
+                            ...matchFields,
+                        ];
+                    }
                 } else {
                     const invoiceResult = await extractInvoice(extractionResult.text);
                     const mapped = mapInvoiceExtractionToFields(invoiceResult?.data);
-                    console.log(mapped)
                     if (mapped.length) {
                         fields = mapped;
                     }

@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import EmptyWrapper from "./EmptyWrapper";
-import DocumentTable from "./DocumentTable";
-import { deleteDocuments, getDocuments } from "../utils/documentApi";
+import toast from "react-hot-toast";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
-import toast from "react-hot-toast";
-import { deleteResumes, getResumes } from "../utils/resumeApi";
+import EmptyWrapper from "../components/common/EmptyWrapper";
+import DocumentTable from "../components/documents/DocumentTable";
+import { deleteDocuments, getDocuments } from "../services/document-api";
+import { deleteResumes, getResumes } from "../services/resume-api";
 import { extractInvoiceData } from "../utils/parseInvoice";
 
 const TYPE_FILTERS = [

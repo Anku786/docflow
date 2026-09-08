@@ -1,9 +1,9 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import DocumentUploader from "./UploadComponent";
-import DocumentPreview from "./DocumentPreview";
-import { saveDocument } from "../utils/documentApi";
-import { saveResume } from "../utils/resumeApi";
+import DocumentUploader from "../components/upload/UploadComponent";
+import DocumentPreview from "../components/documents/DocumentPreview";
+import { saveDocument } from "../services/document-api";
+import { saveResume } from "../services/resume-api";
 import { extractTotalAmount } from "../utils/parseInvoice";
 import { extractResumePayload } from "../utils/parseResume";
 

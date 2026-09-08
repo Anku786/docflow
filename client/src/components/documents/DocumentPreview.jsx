@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useState } from "react";
-import { API_BASE_URL } from "../constants/route-constants";
-import Loader from "./common/LoadingOverlay";
+import { API_BASE_URL } from "../../constants/route-constants";
+import Loader from "../common/LoadingOverlay";
 
 const getPreviewSrc = (fileUrl) => {
     if (!fileUrl) return null;

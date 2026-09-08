@@ -1,9 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import Dashboard from "./components/Dashboard";
-import ReviewView from "./components/ReviewView";
-import { Topbar } from "./components/Topbar";
-import UploadView from "./components/UploadView";
 import { Toaster } from "react-hot-toast";
+import Dashboard from "./pages/Dashboard";
+import ReviewView from "./pages/ReviewView";
+import { Topbar } from "./components/common/Topbar";
+import UploadView from "./pages/UploadView";
 import Loader from "./components/common/LoadingOverlay";
 
 const crumbs = {

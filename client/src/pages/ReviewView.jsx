@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import toast from "react-hot-toast";
-import DocumentPreview from "./DocumentPreview";
-import { updateDocumentStatus } from "../utils/documentApi";
-import { updateResume } from "../utils/resumeApi";
+import DocumentPreview from "../components/documents/DocumentPreview";
+import { updateDocumentStatus } from "../services/document-api";
+import { updateResume } from "../services/resume-api";
 
 const ReviewView = ({ document: record, onBack, setLoading }) => {
   const updateRecord = useCallback(async (status) => {

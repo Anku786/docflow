@@ -1,11 +1,11 @@
 import { memo, useCallback, useMemo } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
+import StatusBadge from "../common/StatusBadge";
+import { SearchHeader } from "./SearchHeader";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
-import "./AgGrid.css";
-import StatusBadge from "./StatusBadge";
-import { SearchHeader } from "./SearchHeader";
+import "../../style/AgGrid.css";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
