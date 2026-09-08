@@ -389,12 +389,12 @@ tbody tr:hover {
 }
 
 .status .draft {
-  color: var(--success);
-  background: var(--success-bg);
+  color: var(--muted);
+  background: var(--muted-bg);
 }
 
 .status.draft .status-dot {
-  background: var(--success);
+  background: var(--muted);
 }
 
 .status .approved {

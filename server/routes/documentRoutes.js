@@ -16,7 +16,7 @@ router.get("/", getDocuments);
 router.delete("/delete", deleteDocuments);
 
 router.put(
-    "update/:id",
+    "/update/:id",
     updateDocumentStatus
 );
 

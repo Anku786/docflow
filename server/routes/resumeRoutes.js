@@ -12,7 +12,7 @@ router.post(
     createResume
 );
 
-router.patch("update/:id", updateResume);
+router.patch("/update/:id", updateResume);
 
 router.delete("/delete", deleteResumes);
 

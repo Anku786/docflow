@@ -16,6 +16,9 @@ const GRID_OPTIONS = {
   suppressRowVirtualisation: false,
   suppressColumnVirtualisation: false,
   animateRows: false,
+  pagination: true,
+  paginationPageSize: 10,
+  paginationPageSizeSelector: [10, 20, 50],
 };
 
 const FileNameCell = memo((params) => {
