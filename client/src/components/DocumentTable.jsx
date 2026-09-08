@@ -18,12 +18,18 @@ const GRID_OPTIONS = {
   animateRows: false,
 };
 
-const FileNameCell = memo((params) => (
-  <div className="document-name" onClick={() => params.context?.onOpen?.(params.data)}>
+const FileNameCell = memo((params) => {
+  const handleClick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    params.context?.onOpen?.(params.data);
+  };
+  return (<div className="document-name" onClick={handleClick}>
     <span className="file-icon">PDF  ↗</span>
-      <strong>{params.data.fileName}</strong>
-  </div>
-));
+    <strong>{params.data.fileName}</strong>
+  </div>)
+});
 
 const SkillListCell = memo(({ value, type = "default" }) => {
   const skills = Array.isArray(value)
@@ -37,7 +43,6 @@ const SkillListCell = memo(({ value, type = "default" }) => {
 
   const visibleSkills = skills.slice(0, 5);
   const remainingSkills = skills.slice(5);
-  console.log("asas____",visibleSkills, value, type)
   return (
     <div className={`skills-cell ${type}`}>
       {visibleSkills.map((skill) => (
@@ -59,7 +64,6 @@ const SkillListCell = memo(({ value, type = "default" }) => {
 });
 
 const SkillCell = memo((params) => {
-  console.log("asas)))))",params?.data)
   return (
     <SkillListCell
       value={params?.data?.skills}

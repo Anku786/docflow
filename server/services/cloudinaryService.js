@@ -10,7 +10,7 @@ export const uploadToCloudinary = (buffer, originalName) => {
         });
         const uploadStream = cloudinary.uploader.upload_stream(
             {
-                resource_type: "raw",
+                resource_type: "image",
                 folder: "docflow/resumes",
                 public_id: originalName.replace(/\.[^/.]+$/, ""),
             },

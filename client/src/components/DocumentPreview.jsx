@@ -41,7 +41,6 @@ const DocumentPreview = ({ preview, onSave }) => {
         (field) => <ExtractedFieldRow field={field} />,
         []
     );
-
     return (
         <section className="upload-review-panel show">
             <div className="upload-review-header">
