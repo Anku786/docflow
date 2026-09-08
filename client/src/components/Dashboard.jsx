@@ -6,6 +6,7 @@ import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import toast from "react-hot-toast";
 import { deleteResumes, getResumes } from "../utils/resumeApi";
+import { extractInvoiceData } from "../utils/parseInvoice";
 
 const TYPE_FILTERS = [
   { value: "invoice", label: "Invoice" },
@@ -32,8 +33,16 @@ const Dashboard = ({ title, subtitle, onOpen, onUpload, onLoadingChange }) => {
         if (cancelled || controller.signal.aborted) {
           return;
         }
-
-        setRows(result?.data || []);
+        if(documentType === "invoice"){
+          let response = result?.data?.map((obj) => {
+            let extractedData = extractInvoiceData(obj.extractedData);
+            console.log({ ...obj, ...extractedData })
+            return {...obj, ...extractedData}
+          })
+          setRows(response || [])
+        }else{
+          setRows(result?.data || []);
+        }
         setSelectedIds([]);
       } catch (error) {
         if (cancelled || error.name === "AbortError") {

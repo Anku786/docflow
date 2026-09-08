@@ -20,6 +20,7 @@ const ExtractedFieldRow = memo(({ field }) => (
 ));
 
 const DocumentPreview = ({ preview, onSave }) => {
+    console.log(preview)
     const fields = useMemo(
         () => (Array.isArray(preview?.extractedData) ? preview.extractedData : []),
         [preview?.extractedData]
@@ -88,9 +89,11 @@ const DocumentPreview = ({ preview, onSave }) => {
                                 </div>
                                 <div className="upload-field-value">
                                     <span>{field.value}</span>
-                                    {/* <span className="upload-confidence">
-                                        {field.confidence}
-                                    </span> */}
+                                    {preview?.documentType ==="invoice" && (
+                                        <span className="upload-confidence">
+                                            {field.confidence}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         ))

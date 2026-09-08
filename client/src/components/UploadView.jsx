@@ -84,6 +84,7 @@ const UploadView = ({ onViewAll, onBack, setLoading }) => {
       fileUrl: previewUrl,
       fileName: uploadedFile?.name,
       extractedData: extractedFields,
+      documentType
     }),
     [extractedFields, previewUrl, uploadedFile?.name]
   );

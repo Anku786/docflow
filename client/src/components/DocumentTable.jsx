@@ -104,7 +104,7 @@ const MatchScoreCell = memo((params) => {
 const StatusCell = memo((params) => <StatusBadge status={params.value} />);
 
 const formatExperience = (params) =>
-  params.value ? `${params.value}` : "-";
+  params.value ? `${params.value} years` : "-";
 
 const formatSkills = (params) => {
   if (!Array.isArray(params.value)) return "-";
@@ -239,6 +239,23 @@ const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
       },
       fileNameColumn,
       {
+        headerName: "Confidence",
+        field: "confidence",
+        cellDataType: "text",
+        minWidth: 150,
+      },
+      {
+        headerName: "Vendor",
+        field: "vendor",
+        headerComponent: SearchHeader,
+        minWidth: 300,
+      },
+      {
+        headerName: "Expense Type",
+        field: "stay",
+        minWidth: 150,
+      },
+      {
         headerName: "Status",
         field: "status",
         filter: "agTextColumnFilter",
@@ -251,6 +268,12 @@ const DocumentTable = ({ documentType, rows, onOpen, onSelectionChange }) => {
         field: "amount",
         minWidth: 150,
       },
+      {
+        headerName: "Invoice Date",
+        field: "date",
+        minWidth: 150,
+      },
+
     ];
   }, [documentType]);
 

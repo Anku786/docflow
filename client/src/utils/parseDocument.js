@@ -34,6 +34,13 @@ export const mapInvoiceExtractionToFields = (extracted) => {
         });
     }
 
+    if (extracted.overallConfidence) {
+        fields.push({
+            label: "Confidence",
+            value: `${Math.round((extracted.overallConfidence || 0) * 100)}%`,
+        });
+    }
+
     Object.entries(extracted.fields).forEach(([key, data]) => {
         if (!data?.value) return;
 

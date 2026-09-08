@@ -162,6 +162,7 @@ const DocumentUploader = ({
                         }
                     }
                     const mapped = mapInvoiceExtractionToFields(invoiceResult?.data);
+                    console.log(mapped)
                     if (mapped.length) {
                         fields = mapped;
                     }

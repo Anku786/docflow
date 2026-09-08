@@ -5,6 +5,24 @@ const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
 });
 
+const calculateOverallConfidence = (fields = {}) => {
+  const confidences = Object.values(fields)
+    .filter((field) => field?.value != null)
+    .map((field) => field?.confidence)
+    .filter((confidence) => typeof confidence === "number");
+
+  if (!confidences.length) {
+    return 0;
+  }
+
+  return Number(
+    (
+      confidences.reduce((sum, confidence) => sum + confidence, 0) /
+      confidences.length
+    ).toFixed(2)
+  );
+};
+
 export const extractInvoiceData = async (rawText) => {
     const prompt = `
 You are an invoice extraction system.
@@ -77,7 +95,13 @@ ${rawText}
     console.log("Gemini response:", response.text);
 
     try {
-        return JSON.parse(response.text);
+      const parsed = JSON.parse(response.text);
+
+      parsed.overallConfidence = calculateOverallConfidence(
+        parsed.fields
+      );
+
+      return parsed;
     } catch (error) {
         console.error("Invalid JSON returned by Gemini:", response.text);
         throw new Error("AI returned invalid JSON");

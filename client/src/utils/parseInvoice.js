@@ -703,3 +703,23 @@ export const parseInvoice = (text) => {
             return parseGenericInvoice(text);
     }
 };
+
+
+export const extractInvoiceData = (fields = []) => {
+    const getValue = (label) =>
+        fields.find(
+            (field) =>
+                field.label.toLowerCase() === label.toLowerCase()
+        )?.value || "";
+
+    return {
+        stay: getValue("Expense Type"),
+
+        vendor: getValue("Vendor"),
+
+        date: getValue("Invoice Date"),
+
+        amount: getValue("Total Amount"),
+        confidence: getValue("Confidence")
+    };
+};
