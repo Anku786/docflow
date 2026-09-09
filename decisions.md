@@ -1,881 +1,593 @@
-# DocFlow — Engineering Decisions & Learnings
+# Engineering Decisions
 
-## Purpose
-
-This document captures the important engineering decisions made while building DocFlow.
-
-The goal is not only to document **what was built**, but also to explain:
-
-* Why a particular approach was chosen
-* What problems came up during development
-* How those problems were diagnosed and fixed
-* What trade-offs were considered
-* What I would improve if this were a production system
+This document records the meaningful engineering decisions made while building DocFlow. It is intentionally not a changelog. Each decision captures the approach chosen, alternatives considered, reasoning, tradeoffs, and functionality deliberately left out of the current scope.
 
 ---
 
-# 1. Overall Approach
-
-The main idea behind DocFlow was:
-
-> **Keep simple problems deterministic and use AI where semantic understanding actually adds value.**
-
-The application currently supports two major document types:
-
-```text
-Resume
-Invoice
-```
-
-The overall flow is:
-
-```text
-Document
-   ↓
-Upload
-   ↓
-Extract text
-   ↓
-Document-specific parsing
-   ↓
-Structured data
-   ↓
-MongoDB
-   ↓
-Review / Approve / Decline
-```
-
-For resumes, there is an additional AI-powered matching flow:
-
-```text
-Resume
-   ↓
-Extract text
-   ↓
-Parse structured resume
-   ↓
-Resume + Zamp JD
-   ↓
-Gemini
-   ↓
-Match score + matched/missing skills
-```
-
-Implementation Note — Client-Side Table Rendering
-
-For the current implementation, I have intentionally kept the document tables client-side rendered. Since the assignment works with a relatively small amount of data, client-side rendering keeps the implementation simpler, provides a responsive user experience, and avoids introducing unnecessary backend complexity for pagination, filtering, sorting, and querying.
-
-Ideally, for a production system with a large number of documents, this table should be server-side rendered/data-driven. Pagination, sorting, filtering, and search should be handled by the backend/database, with the frontend requesting only the required page of data. This would reduce the amount of data transferred to the client and improve scalability as the dataset grows.
-
-This was therefore a conscious scope and complexity trade-off for the assignment rather than a limitation of the architecture.
-
-I intentionally avoided making everything AI-powered.
-
-For example:
-
-### Resume
-
-* Email → Regex
-* Phone → Regex
-* LinkedIn/GitHub → Pattern matching
-* Skills → Section-based parsing
-* Employment dates → Deterministic date parsing
-* Resume vs JD → Gemini
-
-### Invoice
-
-* Vendor → Gemini extraction
-* Invoice number → Gemini extraction
-* Invoice date → Gemini extraction
-* Total amount → Gemini extraction
-* Currency → Gemini extraction
-* Expense type → Gemini classification
-
-The difference exists because invoices can have significantly different layouts and terminology, making deterministic extraction much harder than extracting predictable resume fields.
-
-
----
-
-# 2. Why PDF Parsing Happens in the Frontend
+## 1. Client-Side Table Rendering
 
 ### Decision
 
-I chose PDF.js for extracting text from uploaded resumes in the browser.
+Use **client-side rendering and pagination** for the document tables.
 
-### Why
+The frontend loads the available documents and resumes and uses AG Grid for rendering, sorting, filtering, selection, and pagination.
 
-The assignment is primarily a Frontend Engineer assignment, so I wanted the frontend to demonstrate meaningful ownership of the document-processing flow.
+Pagination is currently configured on the client with a default page size of 10 and options for 20 and 50 rows.
 
-Instead of immediately sending the entire PDF to the backend, the browser can extract the text:
+### Alternatives Considered
+
+* Server-side pagination
+* Server-side sorting and filtering
+* AG Grid Server-Side Row Model
+* Backend APIs such as:
+
+  * `GET /documents?page=1&limit=10`
+  * `GET /documents?sort=createdAt`
+  * `GET /documents?search=ankita`
+
+### Reasoning
+
+The assignment currently works with a relatively small dataset. Introducing server-side table infrastructure would add backend APIs, query handling, pagination state, sorting/filtering contracts, and additional frontend complexity without providing meaningful benefits for the expected dataset size.
+
+AG Grid already provides a good client-side experience for this scale.
+
+The decision keeps the implementation simpler and allows more effort to be spent on the core document-processing workflow.
+
+### Tradeoffs Accepted
+
+* The browser receives more records than it currently displays.
+* Large datasets will eventually increase network and memory usage.
+* Filtering and sorting happen against the client-side dataset rather than the complete database.
+
+### What We Deliberately Cut
+
+Server-side pagination, filtering, sorting, and querying were intentionally left out.
+
+For a production system with a large number of documents, the table should move to a server-side/data-driven model where the backend/database handles pagination, filtering, sorting, and search.
+
+This is a conscious scope decision for the assignment rather than a limitation of the architecture.
+
+---
+
+## 2. PDF Text Extraction in the Frontend
+
+### Decision
+
+Use **PDF.js in the frontend** to extract text from uploaded PDF documents.
+
+The frontend reads the PDF, extracts text page-by-page, and sends the resulting text to the backend when semantic processing is required.
+
+### Alternatives Considered
+
+* Extracting PDF text entirely on the backend
+* Using a dedicated document-processing service
+* Sending the raw PDF directly to an AI model
+* Using a third-party PDF extraction API
+
+### Reasoning
+
+The assignment is primarily a frontend engineering exercise, so keeping basic PDF parsing in the browser demonstrates the ability to work with browser-side document processing.
+
+PDF.js also provides direct access to page text without requiring an additional backend document-processing service.
+
+This keeps the architecture relatively simple:
 
 ```text
 PDF
  ↓
+Browser
+ ↓
 PDF.js
  ↓
-getPage()
+Extracted text
  ↓
-getTextContent()
+Backend
  ↓
-Plain text
+AI semantic analysis
 ```
 
-That text is then passed to the resume parser.
+### Tradeoffs Accepted
 
-### Trade-off
+* PDF text extraction quality depends on the PDF's internal text structure.
+* Scanned/image-only PDFs cannot reliably be handled by simple text extraction.
+* Complex PDF layouts can result in imperfect text ordering.
 
-Client-side parsing means the browser performs some processing, which could become expensive for very large documents.
+### What We Deliberately Cut
 
-For this assignment, however, resumes are relatively small and the approach keeps the architecture simple.
+OCR was not added.
 
-### Production consideration
-
-For very large documents or high-volume processing, I would consider moving PDF extraction to a backend worker or document-processing service.
+Supporting scanned PDFs properly would require an OCR pipeline, which would introduce additional processing, cost, and infrastructure that was outside the scope of the assignment.
 
 ---
 
-# 3. Separating PDF Extraction from Resume Parsing
+## 3. Deterministic Extraction vs AI Extraction
 
 ### Decision
 
-I kept PDF extraction and resume parsing as separate responsibilities.
+Use a **hybrid extraction strategy**.
 
-```text
-PDF.js
-  ↓
-Raw text
-  ↓
-parseResume()
-  ↓
-Structured resume
-```
+Basic, predictable fields are extracted deterministically where practical, while semantic analysis is delegated to Gemini.
 
-### Why
+Examples of deterministic fields include:
 
-While debugging the parser, it was important to distinguish whether an issue was caused by:
+* Name
+* Email
+* Phone
+* Skills when they can be identified reliably
+* Employment duration calculation
 
-* PDF.js
-* The extracted text
-* The parser
+Gemini is used for:
 
-Separating the stages made debugging much easier.
+* Resume-to-JD matching
+* Matched skills
+* Missing skills
+* Strengths
+* Gaps
+* Employment record extraction
 
-### Interview takeaway
+### Alternatives Considered
 
-If asked:
+* Use regular expressions for everything
+* Use Gemini for the complete document
+* Use a dedicated resume parsing service
+* Build a complete custom NLP parser
 
-> "How did you debug PDF parsing?"
+### Reasoning
 
-I would explain:
+Not every extraction problem requires AI.
 
-> "I first verified that PDF.js was extracting the expected text. Once the raw text looked correct, I debugged the parser independently. This helped isolate extraction issues from parsing issues."
+For example, calculating total employment duration from known employment dates is deterministic and should not depend on an LLM.
+
+On the other hand, determining whether a candidate's experience semantically matches a job description requires understanding context, synonyms, responsibilities, and technical relevance.
+
+Using each approach where it is strongest makes the system more predictable.
+
+### Tradeoffs Accepted
+
+The extraction pipeline is more complex than using a single AI call.
+
+There are also multiple representations of extracted data that need to remain consistent between the frontend, backend, database, and AI response.
+
+### What We Deliberately Cut
+
+A custom NLP pipeline and external resume-parsing service were not introduced.
+
+For the current assignment, they would add significant implementation complexity without enough benefit.
 
 ---
 
-# 4. Why Basic Resume Fields Are Not AI-Powered
+## 4. Gemini for Semantic Resume Matching
 
 ### Decision
 
-I did not use Gemini to extract every field from the resume.
+Use **Google Gemini** for semantic resume-to-job-description matching.
 
-Fields such as:
+The model receives the resume text and the fixed Zamp job description and returns structured matching information.
 
-```text
-Name
-Email
-Phone
-LinkedIn
-GitHub
-```
+The response includes:
 
-are extracted using deterministic logic.
+* Match score
+* Matched skills
+* Missing skills
+* Strengths
+* Gaps
+* Work experience records
 
-### Why
+### Alternatives Considered
 
-These fields have relatively predictable formats.
+* Keyword matching
+* TF-IDF/cosine similarity
+* Embeddings
+* A vector database
+* A dedicated resume-matching API
+* Manual rule-based scoring
 
-For example, there is no reason to spend an AI request to identify:
+### Reasoning
 
-```text
-ankita@example.com
-```
+Simple keyword matching would produce misleading results for resumes and job descriptions.
 
-when a regular expression can reliably identify it.
+For example, a candidate may describe a concept differently from the wording used in the job description while still having the relevant experience.
 
-### Benefits
+Gemini provides semantic understanding while allowing the result to be returned in a structured format.
 
-This gives us:
+The fixed job description also makes the matching workflow deterministic from the application's perspective: every uploaded resume is evaluated against the same JD.
 
-* Faster extraction
-* Lower cost
-* Predictable results
-* Easier testing
-* Easier debugging
+### Tradeoffs Accepted
 
-### Principle
+* AI responses are probabilistic.
+* AI processing adds latency.
+* API usage introduces an external dependency.
+* AI output must be validated before being trusted by the application.
 
-> AI should solve ambiguity, not replace straightforward programming.
 
 ---
 
-# 5. Skills Parsing — Avoiding a Hardcoded Skill List
+## 5. Do Not Let Gemini Calculate Total Experience
 
 ### Decision
 
-I deliberately avoided maintaining a huge hardcoded list such as:
+Gemini extracts employment records, but **JavaScript calculates total professional experience**.
 
-```js
-const skillKeywords = [
-  "React",
-  "Angular",
-  "Vue",
-  "JavaScript",
-  ...
-];
-```
-
-### Why
-
-A hardcoded list creates a maintenance problem.
-
-Suppose a resume contains:
+Gemini returns records such as:
 
 ```text
-Svelte
-Astro
-Remix
-SolidJS
+Impact Analytics
+May 2022 – Present
+
+Conzumex
+Jun 2021 – May 2022
 ```
 
-If those technologies are not in our list, the parser would miss them.
+The application then parses the dates, merges overlapping periods, and calculates total months.
 
-Instead, I use the resume's own `SKILLS` section as the source of truth.
+### Alternatives Considered
 
-### Approach
+* Ask Gemini to return total experience directly
+* Calculate experience from the resume summary
+* Calculate experience from project dates
+* Calculate experience using employment records in the frontend
 
-```text
-Find SKILLS section
-       ↓
-Find next major section
-       ↓
-Extract only that range
-       ↓
-Remove category labels
-       ↓
-Split individual skills
-       ↓
-Clean values
-```
+### Reasoning
 
-This makes the parser more adaptable to different skill sets.
+LLMs are not the right source of truth for arithmetic based on structured dates.
 
----
+An earlier implementation allowed Gemini to calculate experience and produced an incorrect result.
 
-# 6. Skills Parsing Bug
-
-### Problem
-
-At one point the extracted skills looked like:
-
-```text
-P, r, o, g, r, a, m, i, n, g, ...
-```
-
-instead of:
-
-```text
-JavaScript
-React.Js
-Redux
-Next.Js
-...
-```
-
-### What happened?
-
-The parser was manipulating the category string incorrectly.
-
-Instead of treating the skills as complete values, part of the logic effectively treated the string as an iterable sequence of characters.
-
-### How I resolved it
-
-I simplified the parsing strategy.
-
-Rather than trying to reconstruct the skills from individual categories, I:
-
-1. Located `SKILLS`
-2. Located the next major section
-3. Took everything between those sections
-4. Removed labels such as `Programming:` and `Development:`
-5. Split by commas
-6. Cleaned the resulting values
-
-### Lesson
-
-The fix was not to add more complicated parsing logic.
-
-It was to **simplify the assumptions**.
-
-> When parsing failed, I reduced the transformation steps instead of adding more regex. The simpler section-based approach was actually more robust.
-
----
-
-# 7. Experience Calculation — Do Not Count Project Dates
-
-### Decision
-
-Only dates inside the `EXPERIENCE` section contribute to total professional experience.
-
-### Why
-
-A resume can contain dates in:
-
-* Projects
-* Education
-* Certifications
-* Internships
-* Employment
-
-Counting every date would produce an incorrect experience value.
-
-For example:
-
-```text
-PROJECT
-Jan 2023 - Mar 2023
-```
-
-should not automatically contribute to professional employment experience.
-
-### Approach
-
-```text
-EXPERIENCE
-   ↓
-Extract employment entries
-   ↓
-Extract start/end dates
-   ↓
-Calculate duration
-   ↓
-Combine overlapping/continuous periods
-```
-
-### Interview takeaway
-
-If asked:
-
-> "How do you prevent project dates from affecting experience?"
-
-Answer:
-
-> "I don't calculate experience globally from every date in the document. I first scope the parser to the EXPERIENCE section and calculate employment duration only from entries found there."
-
----
-
-# 8. Invoice Extraction
-
-### Decision
-
-Invoices are processed using Gemini because invoice layouts and terminology vary significantly.
-
-The invoice extraction service asks Gemini to identify:
-
-```text
-Expense Type
-Vendor
-Invoice Number
-Invoice Date
-Total Amount
-Currency
-```
-
-The model returns structured JSON containing:
-
-```text
-invoiceType
-fields
-    vendorName
-    invoiceNumber
-    invoiceDate
-    totalAmount
-    currency
-```
-
-Each field also contains:
-
-```text
-value
-confidence
-evidence
-```
-
-Example:
-
-```json
-{
-  "vendorName": {
-    "value": "MAKEMYTRIP (INDIA) PRIVATE LIMITED",
-    "confidence": 1,
-    "evidence": "MAKEMYTRIP (INDIA) PRIVATE LIMITED"
-  }
-}
-```
-
-### Why structured output?
-
-The frontend needs predictable data rather than AI-generated prose.
-
-This allows the UI to directly render extracted invoice fields and confidence values.
-
----
-
-# 9. Invoice Confidence vs Overall Confidence
-
-### Decision
-
-Field-level confidence comes from Gemini, but the application calculates the overall confidence.
-
-For example:
-
-```text
-Vendor         1.00
-Invoice No.    0.95
-Invoice Date   1.00
-Amount         1.00
-Currency       1.00
-```
-
-The backend calculates:
-
-```text
-(1 + 0.95 + 1 + 1 + 1) / 5
-= 0.99
-```
-
-Therefore:
-
-```text
-Overall Confidence = 0.99
-```
-
-### Why calculate it ourselves?
-
-I don't want the LLM to independently invent the overall score.
-
-Instead:
+The more reliable approach is:
 
 ```text
 Gemini
-   ↓
-Field extraction + field confidence
-   ↓
-Backend
-   ↓
-Calculate overall confidence
+  ↓
+Employment records
+  ↓
+JavaScript date parsing
+  ↓
+Merge overlapping periods
+  ↓
+Total months
+  ↓
+Years + months
 ```
 
-This makes the score deterministic and reproducible.
+This also makes the calculation reproducible.
 
-### Missing fields
+### Tradeoffs Accepted
 
-Missing fields are excluded from the average rather than automatically being treated as zero.
+The application needs to handle different date formats returned by the model.
 
-For example, if an invoice does not contain an invoice number, that should not automatically mean that the entire extraction has zero confidence.
+Date parsing therefore has to support formats such as:
+
+* `June 2021`
+* `Jun 2021`
+* `06/2021`
+* `06-2021`
+* `2021`
+* `Present`
+* `Current`
+* `Now`
+
+### What We Deliberately Cut
+
+We did not attempt to infer missing employment dates.
+
+If the resume does not contain a reliable date, the application does not invent one.
+
+This avoids presenting an AI-generated estimate as factual employment history.
 
 ---
 
-# 10. Confidence Data Model
+## 6. Prevent Double Counting Employment Periods
 
 ### Decision
 
-Confidence is stored internally as a number between `0` and `1`.
+Merge overlapping employment ranges before calculating total experience.
 
 For example:
 
-```js
-confidence: 0.99
-```
-
-The frontend converts this into a percentage:
-
 ```text
-99%
+Jan 2022 – Present
+Jun 2022 – Dec 2022
 ```
 
-### Why?
+is counted as one continuous period rather than two.
 
-Keeping the raw value numeric makes sorting and calculations easier.
+### Alternatives Considered
 
-AG Grid can then use:
+* Simply sum the duration of every job
+* Trust Gemini's total
+* Ignore overlapping employment
 
-```js
-{
-  headerName: "Confidence",
-  field: "confidence",
-  cellDataType: "number",
-  valueFormatter: ({ value }) =>
-    value == null
-      ? "-"
-      : `${Math.round(value * 100)}%`
-}
-```
+### Reasoning
 
-### Problem encountered
+Candidates can have overlapping jobs, consulting engagements, or employment records.
 
-At one point confidence was stored as:
+Simply adding durations can therefore produce an inflated experience value.
 
-```js
-confidence: "100%"
-```
+The application sorts employment ranges chronologically and merges overlapping periods before calculating the total.
 
-AG Grid interpreted the field as numeric in some circumstances and displayed:
+### Tradeoffs Accepted
 
-```text
-Invalid number
-```
+The calculation represents total calendar employment duration rather than attempting to determine whether overlapping jobs were full-time, part-time, or concurrent.
 
-### Resolution
+### What We Deliberately Cut
 
-Keep confidence numeric in the data layer:
+No attempt is made to determine the employment type or percentage allocation of overlapping jobs.
 
-```text
-1
-0.95
-0.82
-```
-
-and format it for display:
-
-```text
-100%
-95%
-82%
-```
-
-### Principle
-
-> Store data in its most useful machine-readable form and format it at the presentation layer.
+That level of interpretation is outside the scope of the assignment.
 
 ---
 
-# 11. MongoDB for Document Persistence
+## 7. Fixed Job Description Instead of JD Upload
 
 ### Decision
 
-Resume and invoice metadata, extracted information, status, and file information are stored in MongoDB.
-
-The database allows the application to retrieve previously uploaded documents without reprocessing them every time.
-
-Conceptually:
+Use a **fixed Zamp job description** stored in:
 
 ```text
-Document
-├── file information
-├── extracted information
-├── status
-├── confidence
-└── timestamps
+server/data/zamp-jd.txt
 ```
 
-### Why MongoDB?
+The backend reads this file when performing resume matching.
 
-The extracted document structure is naturally document-oriented and can differ between resumes and invoices.
+### Alternatives Considered
 
-MongoDB provides flexibility without requiring a rigid relational schema for every extracted field.
+* Allow users to upload a JD
+* Store JDs in MongoDB
+* Pass the JD from the frontend
+* Create a JD management interface
+
+### Reasoning
+
+The assignment requires demonstrating resume-to-job matching rather than building a complete recruitment platform.
+
+Keeping the JD on the backend provides a single source of truth and prevents the frontend from controlling the matching criteria.
+
+It also removes unnecessary UI and persistence work.
+
+### Tradeoffs Accepted
+
+The application currently supports one configured JD rather than arbitrary job descriptions.
+
+Changing the JD requires changing the server-side configuration/file.
+
+### What We Deliberately Cut
+
+JD upload, JD CRUD, JD versioning, and a JD management UI were deliberately excluded.
+
+These would be natural extensions in a production recruitment platform.
 
 ---
 
-# 12. Cloudinary for File Storage
+## 8. Structured Gemini Responses
 
 ### Decision
 
-Uploaded PDFs are stored in Cloudinary rather than relying on the local filesystem.
+Use Gemini's structured JSON response capability with an explicit response schema.
 
-The MongoDB record stores the corresponding:
+The expected response contains fields such as:
 
 ```text
-fileUrl
-cloudinaryPublicId
+score
+matchedSkills
+missingSkills
+strengths
+gaps
+workExperience
 ```
 
-### Why?
+### Alternatives Considered
 
-A local filesystem is not appropriate for serverless deployment.
+* Parse free-form model text
+* Use Markdown responses
+* Extract JSON manually from model output
 
-On Vercel, the application filesystem is ephemeral and cannot be treated as persistent document storage.
+### Reasoning
 
-The architecture therefore became:
+The application needs predictable data rather than conversational output.
+
+A structured response reduces the amount of fragile string parsing required and makes the boundary between AI output and application logic clearer.
+
+### Tradeoffs Accepted
+
+The schema still does not guarantee that every semantic value is correct.
+
+Application-level validation remains necessary.
+
+### What We Deliberately Cut
+
+No attempt was made to build a generalized AI output-repair system.
+
+The current schema and validation are sufficient for the controlled assignment workflow.
+
+---
+
+## 9. MongoDB for Document Persistence
+
+### Decision
+
+Use **MongoDB** as the primary application database.
+
+MongoDB stores document metadata, extracted fields, matching information, statuses, and Cloudinary references.
+
+### Alternatives Considered
+
+* PostgreSQL
+* MySQL
+* Firebase
+* In-memory storage
+* A document database plus a separate search database
+
+### Reasoning
+
+The extracted document structure is naturally document-oriented and can evolve as different document types introduce different fields.
+
+MongoDB also keeps the backend implementation relatively lightweight for the assignment.
+
+The current query requirements do not justify introducing a second database.
+
+### Tradeoffs Accepted
+
+MongoDB provides less relational structure than a SQL database.
+
+If the system later introduces highly relational entities such as organizations, teams, permissions, workflows, audit records, and complex reporting, the data model may need to be reconsidered.
+
+### What We Deliberately Cut
+
+No separate search engine or vector database was added.
+
+The current document volume and query requirements do not justify the operational complexity.
+
+---
+
+## 10. Cloudinary for Uploaded Files
+
+### Decision
+
+Store uploaded documents in **Cloudinary** and store the resulting URL and public ID in MongoDB.
+
+The backend uses Multer's memory storage and streams the uploaded buffer to Cloudinary.
+
+### Alternatives Considered
+
+* Store files on the backend filesystem
+* Store PDFs directly in MongoDB
+* Amazon S3
+* Cloudinary
+
+### Reasoning
+
+A local filesystem is unsuitable for serverless deployment because the deployment filesystem should not be treated as durable application storage.
+
+Cloudinary provides persistent file storage and delivery while keeping the application server stateless.
+
+The application therefore stores:
 
 ```text
-Browser
-   ↓
-Backend
-   ↓
-Cloudinary
-   ↓
-Permanent PDF URL
-
 MongoDB
-   ↓
-Metadata + Cloudinary reference
+  ├── metadata
+  ├── extracted data
+  └── cloudinaryPublicId
+
+Cloudinary
+  └── actual PDF
 ```
 
-### Upload flow
+### Tradeoffs Accepted
 
-Multer uses memory storage:
+The application now depends on an external storage provider.
 
-```text
-Uploaded PDF
-     ↓
-multer.memoryStorage()
-     ↓
-req.file.buffer
-     ↓
-Cloudinary upload_stream()
-     ↓
-secure_url
-```
+There is also an additional network operation during upload.
 
-This avoids writing temporary files to the server filesystem.
+### What We Deliberately Cut
 
-### Production consideration
+A full S3-compatible storage abstraction was not introduced.
 
-For a larger system I would additionally consider:
-
-* Signed upload URLs
-* Virus/malware scanning
-* File retention policies
-* Access-controlled delivery
-* Content-type validation
+Cloudinary was sufficient for the assignment and reduced infrastructure/setup overhead.
 
 ---
 
-# 13. Cloudinary Serverless Storage Bug
+## 11. Multer Memory Storage for Serverless Compatibility
 
-### Problem
+### Decision
 
-The original upload implementation relied on disk storage.
-
-This worked locally but failed on Vercel with filesystem errors such as:
-
-```text
-ENOENT
-/var/task/server/uploads
-```
-
-### Root cause
-
-Vercel functions should not be treated as persistent servers with writable application storage.
-
-### Resolution
-
-Changed Multer from disk storage to memory storage:
+Use Multer's `memoryStorage()` rather than writing uploaded files to disk.
 
 ```js
 const storage = multer.memoryStorage();
 ```
 
-and upload directly from:
+The resulting `req.file.buffer` is uploaded directly to Cloudinary.
 
-```js
-req.file.buffer
+### Alternatives Considered
+
+* Multer disk storage
+* Temporary filesystem storage
+* Direct browser-to-Cloudinary upload
+
+### Reasoning
+
+The backend is deployed as a Vercel serverless function.
+
+Writing to paths such as:
+
+```text
+/server/uploads
 ```
 
-to Cloudinary.
+is not a reliable persistence strategy in this environment.
 
-### Lesson
+Memory storage allows the file to move directly from the request into Cloudinary without depending on a persistent server filesystem.
 
-> Local filesystem assumptions often break when moving an application to serverless infrastructure.
+### Tradeoffs Accepted
+
+The uploaded file exists in server memory during processing.
+
+To control this, the upload size is limited.
+
+### What We Deliberately Cut
+
+Direct browser-to-Cloudinary uploads were not implemented.
+
+That would reduce backend bandwidth usage but would require additional signed-upload configuration and frontend upload orchestration.
 
 ---
 
-# 14. Cloudinary PDF Delivery
-
-### Problem
-
-The uploaded PDF existed in Cloudinary, but opening its URL resulted in:
-
-```text
-Failed to load PDF document
-```
-
-### Investigation
-
-The Cloudinary URL itself was valid, but PDF delivery security settings can prevent PDF assets from being served.
-
-### Resolution
-
-PDF delivery needs to be enabled in the Cloudinary environment when required.
-
-### Lesson
-
-A successful upload does not necessarily mean that the asset is configured for public delivery.
-
-The upload and delivery paths should be debugged separately:
-
-```text
-Upload
- ↓
-Cloudinary asset
- ↓
-Delivery permissions
- ↓
-Browser
-```
-
----
-
-# 15. Resume GET API
+## 12. Vercel for Frontend and Backend Deployment
 
 ### Decision
 
-The application exposes:
+Deploy the frontend and backend as separate Vercel projects.
+
+The architecture is:
 
 ```text
-GET /api/resumes
-```
-
-to retrieve stored resumes.
-
-### Issue
-
-At one point the frontend received:
-
-```json
-{
-  "success": false,
-  "message": "Failed to fetch resumes"
-}
-```
-
-The backend also produced:
-
-```text
-MongooseError:
-Operation `resumes.find()` buffering timed out
-```
-
-### Root cause
-
-The Vercel serverless function was not reliably establishing/reusing the MongoDB connection before executing the query.
-
-### Resolution
-
-MongoDB connection handling was moved into the serverless request lifecycle and cached:
-
-```text
-Request
-  ↓
-connectDB()
-  ↓
-Cached MongoDB connection
-  ↓
-Controller
-  ↓
-Resume.find()
-```
-
-### Lesson
-
-Serverless environments require different database connection handling from traditional long-running Node.js servers.
-
----
-
-# 16. Separate Local Server and Vercel Entry Points
-
-### Decision
-
-The backend uses different entry points for local development and Vercel.
-
-Local:
-
-```text
-server/server.js
-```
-
-Vercel:
-
-```text
-server/api/index.js
-```
-
-Both use the same Express application:
-
-```text
-             ┌── server.js ── Local
-             │
-Express app ─┤
-             │
-             └── api/index.js ── Vercel
-```
-
-### Why?
-
-This keeps the Express application independent from the runtime.
-
-The application itself contains routes and middleware, while the entry point is responsible for starting it in the appropriate environment.
-
----
-
-# 17. Separate Frontend and Backend Vercel Projects
-
-### Decision
-
-The frontend and backend are deployed as separate Vercel projects.
-
-```text
-React/Vite
+Frontend
+Vercel
    ↓
-Frontend Vercel project
-
-Express
+Backend API
+Vercel
    ↓
-Backend Vercel project
+MongoDB
+   +
+Cloudinary
+   +
+Gemini
 ```
 
-### Why?
+### Alternatives Considered
 
-Initially, attempting to host both through one Vercel project caused API routes to return `404`.
+* Deploy frontend and backend together
+* Deploy backend on Render
+* Deploy backend on Railway
+* Deploy both using a traditional VM
 
-Separating the projects makes the deployment boundaries explicit.
+### Reasoning
 
-The frontend communicates with the deployed backend through:
+The application is already split into frontend and backend responsibilities.
 
-```text
-VITE_API_URL
-```
+Separate deployments make the architecture explicit and allow the frontend and API to be deployed independently.
 
-### Security consideration
+Vercel also fits naturally with the Vite frontend and serverless backend API.
 
-The frontend API URL is intentionally public.
+### Tradeoffs Accepted
 
-Only server-side secrets such as:
+Separate deployments require:
 
-```text
-GEMINI_API_KEY
-MONGO_URI
-CLOUDINARY_API_KEY
-CLOUDINARY_API_SECRET
-```
+* CORS configuration
+* Separate environment variables
+* Separate deployment configuration
+* Managing the API base URL
 
-must remain in the backend environment.
 
 ---
 
-# 18. Environment Variables
+## 13. Environment Variables for External Services
 
 ### Decision
 
-Environment-specific configuration is kept outside source code.
+Keep credentials and service configuration in environment variables.
 
-Frontend:
-
-```text
-VITE_API_URL
-```
-
-Backend:
+Examples include:
 
 ```text
 MONGO_URI
@@ -885,1088 +597,365 @@ CLOUDINARY_API_KEY
 CLOUDINARY_API_SECRET
 ```
 
-### Important distinction
-
-Vite variables prefixed with:
-
-```text
-VITE_
-```
-
-are exposed to the browser.
-
-Therefore:
+The frontend only receives values that are explicitly safe to expose, such as:
 
 ```text
 VITE_API_URL
 ```
 
-is safe to expose because it is only the backend URL.
+### Alternatives Considered
 
-Secrets such as:
+* Hard-code configuration
+* Store credentials in source control
+* Pass API secrets through the frontend
 
-```text
-GEMINI_API_KEY
-CLOUDINARY_API_SECRET
-```
+### Reasoning
 
-must never be placed in frontend code.
+Secrets must never be shipped to the browser or committed to the repository.
+
+The backend owns access to MongoDB, Gemini, and Cloudinary credentials.
+
+### Tradeoffs Accepted
+
+Local development and deployment require environment configuration.
+
+### What We Deliberately Cut
+
+No custom secrets-management service was added.
+
+Vercel environment variables are sufficient for the current project.
 
 ---
 
-# 19. Delete Should Remove Both Database and Cloudinary Asset
+## 14. Document Status Lifecycle
 
 ### Decision
 
-Deleting a document should clean up:
+Use a small explicit status lifecycle for documents.
 
-1. MongoDB record
-2. Cloudinary asset
-
-The MongoDB record stores:
+Typical states include:
 
 ```text
-cloudinaryPublicId
+processing
+ready
+review
+approved
+declined
 ```
 
-so the backend knows which Cloudinary asset needs to be removed.
+The frontend uses these states to control UI behavior and review actions.
 
-### Flow
+### Alternatives Considered
+
+* Boolean flags such as `isProcessed`
+* A larger workflow/state machine
+* Free-form status strings
+
+### Reasoning
+
+A document-processing workflow has meaningful states, and explicit states are easier to reason about than multiple independent boolean flags.
+
+For example:
 
 ```text
-DELETE request
-      ↓
-Find records
-      ↓
-Get cloudinaryPublicId
-      ↓
-Delete Cloudinary assets
-      ↓
-Delete MongoDB records
+processing
+    ↓
+ready
+    ↓
+review
+    ↓
+approved / declined
 ```
 
-### Why?
+This also makes the UI state predictable.
 
-If only the database record is removed:
+### Tradeoffs Accepted
 
-```text
-MongoDB
-  ❌ record removed
+The current workflow is intentionally simple and does not model every possible failure or processing state.
 
-Cloudinary
-  ⚠️ PDF still exists
-```
+### What We Deliberately Cut
 
-This creates orphaned files and unnecessary storage usage.
+No formal workflow engine or state-machine library was introduced.
+
+For the current workflow, simple persisted status values are sufficient.
 
 ---
 
-# 20. Bulk Delete
-
-The same principle applies when deleting multiple documents.
-
-### Approach
-
-```text
-Selected IDs
- ↓
-Find records
- ↓
-Get Cloudinary public IDs
- ↓
-Delete Cloudinary assets
- ↓
-Delete MongoDB records
-```
-
-### Why fetch records first?
-
-The frontend only sends document IDs.
-
-The server needs the corresponding Cloudinary IDs to perform storage cleanup.
-
-This keeps storage management on the backend.
-
----
-
-# 21. AG Grid for Document Tables
+## 15. Review Side Panel Instead of Navigating Away
 
 ### Decision
 
-I chose AG Grid for the resume and invoice tables.
+Clicking a document filename opens a **review side panel** rather than navigating to another page or immediately downloading the file.
 
-### Why?
+The panel provides:
 
-The application needs:
+* Document preview
+* Extracted fields
+* Review/edit capability
+* Approval/decline actions
+
+### Alternatives Considered
+
+* Navigate to a dedicated document detail route
+* Open the PDF in a new browser tab
+* Download the document
+* Use a modal
+
+### Reasoning
+
+The primary task after extraction is reviewing structured information.
+
+A side panel keeps the document list visible while allowing the user to inspect and edit a selected document.
+
+This reduces context switching and better represents an operational document-processing workflow.
+
+### Tradeoffs Accepted
+
+The side panel consumes horizontal space and requires careful responsive behavior.
+
+### What We Deliberately Cut
+
+A full document-detail routing system was not introduced.
+
+The current review experience does not require URL-based navigation.
+
+---
+
+
+## 17. AG Grid for Large/Dense Document Tables
+
+### Decision
+
+Use **AG Grid Community** for document tables.
+
+### Alternatives Considered
+
+* Native HTML tables
+* TanStack Table
+* Material UI DataGrid
+* A custom table implementation
+
+### Reasoning
+
+The document table needs:
 
 * Sorting
-* Resizing
-* Selection
 * Filtering
-* Large-data rendering
-* Custom cell renderers
+* Pagination
+* Checkbox selection
+* Custom cell rendering
+* Tooltips
+* Resizable columns
+* Large skill lists
 
 AG Grid provides these capabilities without requiring a large amount of custom table infrastructure.
 
-### Resume columns
+It also provides virtualization capabilities if the dataset grows later.
 
-The resume table contains information such as:
+### Tradeoffs Accepted
 
-```text
-Resume
-Candidate
-Experience
-Skills
-Matched Skills
-Missing Skills
-Match Score
-Status
-Uploaded
-```
+AG Grid adds library complexity and requires understanding its configuration and rendering lifecycle.
 
-### Invoice columns
+### What We Deliberately Cut
 
-The invoice table focuses on the most useful scanning information:
-
-```text
-Invoice
-Vendor
-Invoice Number
-Invoice Date
-Expense Type
-Amount
-Confidence
-Status
-Uploaded
-```
-
-Not every extracted field needs to be visible in the table.
-
-The review panel can show the complete extracted information.
+Advanced enterprise-only AG Grid capabilities and server-side row models were not introduced because they were unnecessary for the current scope.
 
 ---
 
-# 22. Custom Skill Cell Rendering
-
-### Problem
-
-Skills can be very long and displaying every skill in one table cell makes the table difficult to scan.
+## 19. Confidence Values Are Represented as 0–1 Internally
 
 ### Decision
 
-Only the first few skills are displayed as chips.
+Store confidence values internally as numeric values between `0` and `1`.
+
+The frontend formats them as percentages.
 
 For example:
 
 ```text
-JavaScript
-React
-Redux
-Next.js
-TypeScript
-+4 more
+0.95 → 95%
+1.0  → 100%
 ```
 
-The remaining skills are available through a tooltip.
+### Alternatives Considered
 
-### Why?
+* Store `"95%"` as a string
+* Store numeric values between `0` and `100`
+* Allow Gemini to generate arbitrary confidence descriptions
 
-This provides a balance between:
+### Reasoning
 
-* Information density
-* Readability
-* Horizontal scrolling
-* Table performance
+A numeric normalized representation is easier to compare, sort, filter, and aggregate.
 
-The same component is reused for:
+Formatting should happen at the presentation layer rather than being embedded in the stored value.
 
-```text
-Skills
-Matched Skills
-Missing Skills
-```
+### Tradeoffs Accepted
+
+The UI needs a small formatting step.
+
+### What We Deliberately Cut
+
+No advanced confidence calibration model was implemented.
+
+The confidence values are currently extraction/model confidence indicators, not statistically calibrated probabilities.
 
 ---
 
-# 23. PDF Review Side Panel
+## 20. Deterministic Confidence for Derived Fields
 
 ### Decision
 
-Clicking a document filename opens the document in a review panel instead of downloading it.
+Fields derived directly by application logic receive deterministic confidence rather than asking the model to invent confidence for them.
 
-The flow is:
+For example, total experience calculated from validated employment dates is treated as application-derived data.
 
-```text
-AG Grid
-   ↓
-Click document
-   ↓
-Selected record
-   ↓
-ReviewView
-   ↓
-DocumentPreview
-```
+### Alternatives Considered
 
-### Why?
+* Ask Gemini to provide confidence for every field
+* Use the model's confidence for calculated values
+* Assign arbitrary confidence values
 
-The primary purpose of DocFlow is document processing and review.
+### Reasoning
 
-The user should be able to inspect:
+Confidence should describe uncertainty in extraction.
 
-* Original document
-* Extracted information
-* Confidence
-* Review status
+If the application deterministically calculates a value from known dates, there is no additional model uncertainty involved in that calculation.
 
-without leaving the dashboard.
+Keeping this distinction makes the data model more honest.
+
+### Tradeoffs Accepted
+
+The application does not represent uncertainty about whether an extracted employment date itself was correctly interpreted unless that uncertainty is explicitly captured during extraction.
+
+### What We Deliberately Cut
+
+A complete field-level provenance and confidence-calibration system was not implemented.
 
 ---
-
-# 24. Document Status Workflow
-
-Documents can move through states such as:
-
-```text
-Processing
-Ready
-Needs Review
-Approved
-Declined
-Draft
-```
-
-The review panel provides actions such as:
-
-```text
-Save Draft
-Approve
-Decline
-```
-
-The backend updates the corresponding document record.
-
-### Why backend status updates?
-
-The backend is the source of truth for document state.
-
-The frontend updates its local state after a successful API response.
-
----
-
-# 25. Global Loading State
+## 22. Frontend/Backend Responsibility Split
 
 ### Decision
 
-A global loading overlay is controlled from the top-level application.
+Keep presentation and browser-specific processing in the frontend while keeping persistence, secrets, AI integration, and external service communication in the backend.
 
-The flow is:
+### Frontend Responsibilities
 
-```text
-Dashboard
-    ↓
-onLoadingChange(true)
-    ↓
-App
-    ↓
-isLoading
-    ↓
-Loader
-```
+* File selection
+* PDF text extraction
+* Tables
+* Filtering/sorting UI
+* Review panel
+* Editing extracted fields
+* Loading states
+* User interaction
 
-### Why?
+### Backend Responsibilities
 
-Operations such as:
+* API endpoints
+* MongoDB
+* Cloudinary
+* Gemini
+* Resume/JD matching
+* Persistence
+* Document lifecycle
 
-* Loading documents
-* Deleting documents
-* Saving
-* Approving
-* Declining
+### Alternatives Considered
 
-can all require asynchronous API calls.
+* Put all parsing in the backend
+* Put Gemini directly in the frontend
+* Build a monolithic frontend-only implementation
 
-A centralized loader provides consistent feedback.
+### Reasoning
 
-### Implementation principle
+API keys and database credentials cannot be exposed in the browser.
 
-The loader should render the application normally and add an overlay only while loading:
+At the same time, PDF.js is a reasonable browser-side capability and keeps the implementation aligned with the frontend-focused nature of the assignment.
 
-```text
-Application
-      +
-Loading overlay
-```
+This creates a clean boundary without unnecessarily moving all processing to the backend.
 
-rather than replacing the entire application tree.
+### Tradeoffs Accepted
 
----
+Some processing occurs in different layers, so the data contract between frontend and backend must remain consistent.
 
-# 26. React StrictMode and Double API Effects
+### What We Deliberately Cut
 
-### Problem
-
-During development, the document-loading `useEffect` appeared to execute twice.
-
-Logs looked similar to:
-
-```text
-DASHBOARD → loading TRUE
-DASHBOARD → loading TRUE
-```
-
-### Root cause
-
-React StrictMode intentionally re-runs certain lifecycle/effect behavior in development to detect unsafe side effects.
-
-### Risk
-
-An async effect that blindly sets loading to `false` in `finally` can cause this sequence:
-
-```text
-Request A starts
- ↓
-loading = true
-
-StrictMode cleanup
- ↓
-Request A aborted
-
-Request B starts
- ↓
-loading = true
-
-Request A finally
- ↓
-loading = false
-```
-
-The UI can therefore hide the loader while Request B is still running.
-
-### Resolution
-
-The effect tracks cancellation:
-
-```js
-let cancelled = false;
-```
-
-and only updates loading when the current effect is still active.
-
-### Lesson
-
-Async effects should handle both:
-
-```text
-AbortController
-```
-
-and:
-
-```text
-Effect cancellation state
-```
-
-when appropriate.
+The frontend does not directly communicate with Gemini, MongoDB, or Cloudinary using secret credentials.
 
 ---
 
-# 27. Function Reference vs Function Invocation
-
-### Problem
-
-We had logic similar to:
-
-```js
-const callAPI =
-  type === "resume"
-    ? deleteResumes(selectedDocuments)
-    : deleteDocuments(selectedDocuments);
-```
-
-This executes the function immediately.
-
-### Correct approach
-
-Select the function first:
-
-```js
-const callAPI =
-  type === "resume"
-    ? deleteResumes
-    : deleteDocuments;
-
-const response = await callAPI(selectedDocuments);
-```
-
-### Lesson
-
-A function reference:
-
-```js
-deleteResumes
-```
-
-is different from invoking it:
-
-```js
-deleteResumes(...)
-```
-
-This is an important JavaScript concept when working with callbacks and conditional behavior.
-
----
-
-# 28. Gemini — Where AI Actually Adds Value
+## 23. Global Loading State
 
 ### Decision
 
-Gemini is used for problems requiring semantic understanding.
+Use a shared/global loading state for application-level operations rather than implementing a completely separate full-screen loader in every component.
 
-For resume matching, the important question is not:
+### Alternatives Considered
 
-> "Does the resume contain the word React?"
+* Local loading state in every component
+* React Context
+* A dedicated global state library
+* Skeleton loading everywhere
 
-It is:
+### Reasoning
 
-> "How well does this candidate's experience and skill set align with this particular job?"
+Document loading, processing, and other major asynchronous operations need a consistent application-level visual state.
 
-That requires semantic understanding.
+A centralized loader prevents duplicated loading UI logic.
 
-### Example
+### Tradeoffs Accepted
 
-A JD might mention:
+A global loader is appropriate for major application operations but is not ideal for every small background request.
 
-```text
-React
-Angular
-Vue.js
-```
+### What We Deliberately Cut
 
-A simple keyword system could penalize a candidate because Angular and Vue are missing.
+A complete skeleton-loading system for every table and panel was not implemented.
 
-A semantic evaluator can understand that these are frontend frameworks and that strong React experience may still be highly relevant.
-
-This is where Gemini adds real value.
+That can be added later where it provides a better perceived-performance experience.
 
 ---
 
-# 29. The Zamp JD Is Stored as Text
+## 24. Handle Async Effects Against Stale Responses
 
 ### Decision
 
-For this assignment, the JD is stored as:
+Use request cancellation and an active-effect guard when loading document data.
 
-```text
-server/data/zamp-jd.txt
-```
+The frontend uses `AbortController` and checks whether the effect is still active before updating state.
 
-### Why not build JD upload + database management?
+### Alternatives Considered
 
-There is currently one known JD.
+* Ignore stale requests
+* Only use a boolean mounted flag
+* Move all loading logic into Redux
+* Use a data-fetching library
 
-Building:
+### Reasoning
 
-```text
-JD upload
-JD CRUD
-JD database model
-JD file management
-```
+React development behavior can expose race conditions in asynchronous effects, especially when components mount/unmount or dependencies change quickly.
 
-would add infrastructure without significantly improving the main assignment.
+Preventing stale responses from updating state makes the loading behavior more predictable.
 
-Instead:
+### Tradeoffs Accepted
 
-```text
-zamp-jd.txt
-      ↓
-Read as text
-      ↓
-Resume + JD
-      ↓
-Gemini
-```
+Each relevant API helper needs to accept an optional abort signal.
 
-### Trade-off
+### What We Deliberately Cut
 
-This is appropriate for the assignment but not ideal for a multi-job production system.
-
-If the product supported hundreds of JDs, I would move the JD into a database or document store.
+A full data-fetching library such as React Query was not introduced because the current API surface is small.
 
 ---
 
-# 30. Resume Match API
-
-### Decision
-
-The backend exposes:
-
-```text
-POST /api/resumes/match
-```
-
-The frontend sends:
-
-```json
-{
-  "resumeText": "..."
-}
-```
-
-The backend:
-
-1. Reads the Zamp JD
-2. Sends resume + JD to Gemini
-3. Receives structured analysis
-4. Returns the match result
-
-### Why backend Gemini integration?
-
-The Gemini API key must never be exposed in the browser.
-
-The architecture is:
-
-```text
-React
-  ↓
-Our Backend
-  ↓
-Gemini
-```
-
-not:
-
-```text
-React
-  ↓
-Gemini API
-```
-
-This keeps the API key private.
-
----
-
-# 31. Structured Gemini Response
-
-### Decision
-
-Gemini returns JSON rather than free-form text.
-
-The response conceptually looks like:
-
-```json
-{
-  "match_score": "86%",
-  "matched_skill": "...",
-  "missing_skills": "..."
-}
-```
-
-### Why?
-
-Structured output makes the AI result predictable for the frontend.
-
-The UI can directly render:
-
-```text
-86%
-
-Matched Skills
-✓ React
-✓ JavaScript
-✓ Git
-
-Missing Skills
-! Accessibility
-! Vue.js
-```
-
-We don't need fragile string parsing of an AI-generated paragraph.
-
----
-
-# 32. Match Score vs Extraction Confidence
-
-These are two separate concepts.
-
-### Extraction confidence
-
-Answers:
-
-> "How confident are we that this field was extracted correctly?"
-
-Example:
-
-```text
-Email: 99%
-```
-
-### Match score
-
-Answers:
-
-> "How well does this resume match the JD?"
-
-Example:
-
-```text
-Resume Match: 86%
-```
-
-They should never be presented as the same metric.
-
-This distinction is important because a document can have:
-
-```text
-Extraction confidence: 100%
-Match score: 72%
-```
-
-That means the information was extracted reliably, but the candidate is not necessarily a strong match for the JD.
-
----
-
-# 33. Zamp Match Criteria
-
-The Zamp JD isn't just asking for specific technologies.
-
-It emphasizes:
-
-```text
-Frontend development
-Experience
-Architecture
-Performance
-Responsive design
-Accessibility
-UI/UX
-Leadership
-Mentoring
-Collaboration
-Git
-Agile
-```
-
-Therefore, the match analysis considers multiple dimensions rather than simply counting matching keywords.
-
-### Interview answer
-
-If asked:
-
-> "Why not just calculate a percentage based on matching skills?"
-
-I would say:
-
-> "Because skill overlap alone doesn't represent job fit. A candidate can have the right technologies but lack the required experience, architecture knowledge, leadership exposure, or performance experience. I wanted the analysis to consider the complete JD."
-
----
-
-# 34. 400 Bad Request During Gemini Match
-
-### Problem
-
-The match API returned:
-
-```text
-POST /api/resumes/match 400 Bad Request
-```
-
-### What the API expected
-
-The controller expected:
-
-```json
-{
-  "resumeText": "..."
-}
-```
-
-### Debugging
-
-Instead of assuming Gemini was failing, I checked the first boundary:
-
-```js
-console.log("MATCH BODY:", req.body);
-```
-
-This determines whether the frontend is actually sending the expected payload.
-
-I also verified Express middleware:
-
-```js
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-```
-
-and the frontend request:
-
-```js
-fetch("/api/resumes/match", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    resumeText: text
-  })
-});
-```
-
-### Lesson
-
-A 400 error is not necessarily an AI problem.
-
-First verify:
-
-```text
-Request
- ↓
-Payload
- ↓
-Route
- ↓
-Controller validation
- ↓
-Service
-```
-
----
-
-# 35. GitHub Secret Issue
-
-### Problem
-
-GitHub rejected a push because an API key had been committed through:
-
-```text
-server/.env
-```
-
-### What we learned
-
-Adding `.env` to `.gitignore` is necessary, but it does not remove a secret that has already entered Git history.
-
-### Correct response
-
-The important steps are:
-
-1. Revoke/rotate the exposed API key.
-2. Add `.env` to `.gitignore`.
-3. Remove `.env` from Git tracking.
-4. Clean repository history if necessary.
-5. Push the cleaned history.
-
-### Important principle
-
-> Treat an exposed API key as compromised even if the repository is private.
-
----
-
-# 36. Current Architecture
-
-The current system can be explained as:
-
-```text
-                         ┌──────────────────────┐
-                         │      React App       │
-                         │                      │
-                         │ Upload / Dashboard   │
-                         │ Review / AG Grid     │
-                         └──────────┬───────────┘
-                                    │
-                         ┌──────────┴───────────┐
-                         │                      │
-                         ▼                      ▼
-                    Resume PDF             Invoice PDF
-                         │                      │
-                         ▼                      ▼
-                       PDF.js                Backend
-                         │                      │
-                         ▼                      ▼
-                   Resume parser        Gemini extraction
-                         │                      │
-                         │                      ▼
-                         │              Invoice structured data
-                         │
-                         ▼
-                   Resume structured data
-                         │
-                         ▼
-                  Resume + Zamp JD
-                         │
-                         ▼
-                      Gemini
-                         │
-                         ▼
-                    Match result
-                         │
-                         └──────────┬───────────┘
-                                    ▼
-                              Express API
-                                    │
-                       ┌────────────┴────────────┐
-                       │                         │
-                       ▼                         ▼
-                   MongoDB                  Cloudinary
-                 Metadata/data                PDF files
-```
-
-Deployment:
-
-```text
-┌──────────────────────┐
-│  Frontend Vercel     │
-│  React + Vite        │
-└──────────┬───────────┘
-           │
-           │ HTTPS
-           ▼
-┌──────────────────────┐
-│  Backend Vercel      │
-│  Express             │
-└───────┬──────┬───────┘
-        │      │
-        ▼      ▼
-   MongoDB   Cloudinary
-        │
-        ▼
-     Gemini
-```
-
----
-
-# 37. What I Would Improve for Production
-
-The current architecture is intentionally appropriate for an assignment.
-
-If I were turning this into a production system, I would consider:
-
-## 1. Background processing
-
-Large documents shouldn't block the request.
-
-I would move parsing and AI processing into a job queue:
-
-```text
-Upload
- ↓
-Queue
- ↓
-Worker
- ↓
-Parse
- ↓
-Gemini
- ↓
-Database
-```
-
-## 2. JD management
-
-Instead of one:
-
-```text
-zamp-jd.txt
-```
-
-I would have:
-
-```text
-JobDescription
-```
-
-records in the database.
-
-That would allow:
-
-```text
-Multiple companies
-Multiple roles
-Multiple JDs
-```
-
-## 3. Deterministic scoring + AI reasoning
-
-I would avoid giving Gemini complete control over the numerical score.
-
-A stronger production approach would be:
-
-```text
-Deterministic scoring
-       +
-Semantic AI analysis
-       ↓
-Final explainable score
-```
-
-For example:
-
-```text
-Skills              40%
-Experience          20%
-Responsibilities    15%
-Architecture        10%
-Leadership           5%
-UI/UX                5%
-Git/Agile            5%
-```
-
-Gemini can provide semantic evidence while the scoring engine remains predictable.
-
-## 4. Caching
-
-The JD does not change for every resume.
-
-I would cache the parsed JD or its embedding rather than repeatedly processing the same text.
-
-## 5. Observability
-
-For production I would add:
-
-* Request IDs
-* Structured logs
-* AI latency
-* Gemini errors
-* Parsing failures
-* Processing status
-* Metrics
-
-## 6. Security
-
-I would also add:
-
-* File type validation
-* File size limits
-* Malware scanning
-* Authentication/authorization
-* Rate limiting
-* Secure file storage
-* Signed/private document URLs
-
-## 7. Better document processing
-
-For scanned/image-only PDFs, PDF.js text extraction may not be sufficient.
-
-I would add an OCR pipeline:
-
-```text
-PDF
- ↓
-Text extraction
- ↓
-If text unavailable
- ↓
-OCR
- ↓
-Parser
-```
-
-This would improve support for scanned invoices and resumes.
-
----
-
-# 38. Key Interview Talking Points
-
-If I had to summarize the project in an interview, I would explain it like this:
-
-> "I designed DocFlow around a simple principle: deterministic logic for predictable extraction and AI for semantic understanding."
-
-> "PDF.js extracts resume text on the frontend because this was a frontend-focused assignment."
-
-> "I then parse predictable resume fields like email, phone, links, skills, and employment history using JavaScript rather than making unnecessary AI calls."
-
-> "For invoices, the document layout is much less predictable, so I use Gemini to extract structured invoice information along with field-level confidence and evidence."
-
-> "I calculate overall extraction confidence in the backend from the individual field confidences rather than allowing the LLM to independently determine the final score."
-
-> "For resume matching, I compare the candidate against the fixed Zamp Job Description using Gemini. The JD is currently stored as a text file because there is only one fixed JD for the assignment."
-
-> "I also keep extraction confidence separate from job-match score. One measures how reliable the extracted data is, while the other measures how well the candidate matches the role."
-
-> "The documents are persisted in MongoDB while the actual PDFs are stored in Cloudinary, which is more appropriate for the serverless deployment."
-
-> "During development I ran into issues with skill parsing, serverless filesystem storage, MongoDB connection lifecycle, Cloudinary PDF delivery, API payloads, AG Grid data types, and React StrictMode effects. I traced each issue through the system boundaries rather than treating each symptom independently."
-
----
-
-# 39. Biggest Lessons
-
-### Keep responsibilities separate
-
-PDF extraction, parsing, persistence, AI analysis, and UI rendering shouldn't all live in one giant function.
-
-### Don't use AI unnecessarily
-
-AI is powerful, but deterministic code is better for deterministic problems.
-
-### Use AI where ambiguity exists
-
-Invoices and semantic resume matching benefit more from AI than predictable fields such as email or phone numbers.
-
-### Make AI outputs structured
-
-Never build important UI behavior around unpredictable AI prose.
-
-### Keep confidence numeric
-
-Store:
-
-```text
-0 → 1
-```
-
-and format it as:
-
-```text
-0% → 100%
-```
-
-in the UI.
-
-### Separate extraction confidence from match score
-
-These represent different business concepts and should remain independent.
-
-### Don't rely on local filesystem storage in serverless
-
-Persistent documents belong in object storage such as Cloudinary rather than the Vercel function filesystem.
-
-### Debug from the boundary
-
-When something fails:
-
-```text
-UI
- ↓
-Request
- ↓
-Route
- ↓
-Controller
- ↓
-Service
- ↓
-External API / DB / Storage
-```
-
-Check each boundary systematically.
-
-### Handle async effects carefully
-
-React development behavior such as StrictMode can expose race conditions that are easy to miss if asynchronous cleanup is not handled correctly.
-
-### Design for the assignment, but know the production trade-offs
-
-The current solution intentionally avoids unnecessary infrastructure.
-
-At the same time, the architecture leaves clear paths for:
-
-* Multiple JDs
-* Background processing
-* OCR
-* Caching
-* Deterministic scoring
-* Observability
-* Production security
-* Scalable document processing
+# Summary of Engineering Philosophy
+
+The implementation intentionally follows a few principles:
+
+1. **Use deterministic logic where the problem is deterministic.**
+2. **Use AI where semantic understanding is actually required.**
+3. **Avoid infrastructure that does not solve a current requirement.**
+4. **Keep secrets and persistence on the backend.**
+5. **Keep the frontend responsible for user experience and browser capabilities.**
+6. **Prefer a complete vertical slice over partially implemented features.**
+7. **Make scalability decisions explicit rather than prematurely optimizing for scale.**
+8. **Treat AI output as untrusted application input and validate it before relying on it.**
+9. **Document tradeoffs rather than presenting every decision as universally optimal.**
+10. **Optimize the implementation for the assignment's actual constraints while keeping obvious production evolution paths available.**
